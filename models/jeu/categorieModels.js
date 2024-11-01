@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const sequelize = require('../../config/database'); // Assurez-vous que ce chemin est correct
 
-const CategorieModels = sequelize.define('Categorie', {
+const categorieModels = sequelize.define('JeuCategorie', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -16,4 +16,4 @@ const CategorieModels = sequelize.define('Categorie', {
   timestamps: true,
 });
 
-module.exports = CategorieModels;
+module.exports = categorieModels;

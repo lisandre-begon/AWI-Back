@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../../config/database');
-const CategorieModels = require('./CategorieModels');
+const CategorieModels = require('./categorieModels');
 
 const JeuModels = sequelize.define('Jeu', {
   etiquette: {

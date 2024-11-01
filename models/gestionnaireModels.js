@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Gestionnaire = sequelize.define('Gestionnaire', {
+const gestionnaire = sequelize.define('gestionnaire', {
   id_gestionnaire: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -16,4 +16,4 @@ const Gestionnaire = sequelize.define('Gestionnaire', {
   timestamps: true,
 });
 
-module.exports = Gestionnaire;
+module.exports = gestionnaire;
