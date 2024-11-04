@@ -43,7 +43,21 @@ const JeuModels = sequelize.define('Jeu', {
   timestamps: true,
 });
 
-JeuModels.belongsToMany(CategorieModels, { through: 'JeuCategorie' });
-CategorieModels.belongsToMany(JeuModels, { through: 'JeuCategorie' });
+/*
+JeuModels.associate = (models) => {
+  // Relation N-N avec Categorie
+  JeuModels.belongsToMany(models.Categorie, {
+    through: 'JeuCategorie',
+    foreignKey: 'jeuId',
+    otherKey: 'categorieId',
+  });
 
-module.exports = JeuModels;
+  // Relation N-N avec Transaction
+  JeuModels.belongsToMany(models.Transaction, {
+    through: 'TransactionJeu',
+    foreignKey: 'jeuId',
+    otherKey: 'transactionId',
+  });
+};
+*/ 
+return JeuModels;

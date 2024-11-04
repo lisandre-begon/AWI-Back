@@ -1,43 +1,7 @@
 const Jeu = require('../models/jeu/jeuModels');
 const Categorie = require('../models/jeu/categorieModels');
+const { categoriePrefaites } = require('../config/donneeFictives');
 
-const categoriePrefaites = [
-  { id: 1, nom: 'Action' },
-  { id: 2, nom: 'Aventure' },
-  { id: 3, nom: 'Simulation' },
-  { id: 4, nom: 'Stratégie' },
-  { id: 5, nom: 'RPG' },
-  { id: 6, nom: 'Sport' },
-  { id: 7, nom: 'Puzzle' },
-  { id: 8, nom: 'Horreur' },
-  { id: 9, nom: 'Plateforme' },
-  { id: 10, nom: 'Course' },
-  { id: 11, nom: 'FPS' },
-  { id: 12, nom: 'TPS' },
-  { id: 13, nom: 'MMO' },
-  { id: 14, nom: 'Survie' },
-  { id: 15, nom: 'Battle Royale' },
-  { id: 16, nom: 'Rogue-like' },
-  { id: 17, nom: 'Beat\'em all' },
-  { id: 18, nom: 'Musical' },
-  { id: 19, nom: 'Party Game' },
-  { id: 20, nom: 'Visual Novel' },
-  { id: 21, nom: 'Metroidvania' },
-  { id: 22, nom: 'Hack\'n Slash' },
-  { id: 23, nom: 'City Builder' },
-  { id: 24, nom: 'Sandbox' },
-  { id: 25, nom: 'Rythme' },
-  { id: 26, nom: 'Tactical RPG' },
-  { id: 27, nom: 'MMORPG' },
-  { id: 28, nom: 'MOBA' },
-  { id: 29, nom: 'Tower Defense' },
-  { id: 30, nom: 'Visual Novel' },
-  { id: 31, nom: 'Jeu de cartes' },
-  { id: 32, nom: 'Jeu de société' },
-  { id: 33, nom: 'Jeu de rôle' },
-  { id: 34, nom: 'Jeu de stratégie' },
-  { id: 35, nom: 'Jeu de tir' },
-];
 
 async function createJeu(req, res) {
   try {

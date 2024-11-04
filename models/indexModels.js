@@ -2,7 +2,7 @@
 const sequelize = require('../config/database');
 const Vendeur = require('./VendeurModels');
 const Gestionnaire = require('./GestionnaireModels');
-const Acheteur = require('./AcheteurModels');
+const Acheteur = require('./Acheteur');
 const Transaction = require('./TransactionModels');
 const Jeu = require('./jeu/JeuModels'); // Met à jour le chemin vers JeuModels
 const Categorie = require('./jeu/CategorieModels'); // Met à jour le chemin vers CategorieModels

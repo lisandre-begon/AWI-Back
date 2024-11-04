@@ -57,7 +57,9 @@ const transactionModels = sequelize.define('Transaction', {
   tableName: 'transactions',
   timestamps: true,
 });
+/*
 
 transactionModels.belongsToMany(Jeu, { through: 'TransactionJeu' });
+*/
 
 module.exports = transactionModels;
