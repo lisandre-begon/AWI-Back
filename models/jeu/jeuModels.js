@@ -24,6 +24,20 @@ const JeuModels = sequelize.define('Jeu', {
       min: 0,
     },
   },
+  statut : {
+    type: DataTypes.ENUM('en vente', 'pas encore en vente', 'vendu'),
+    allowNull: false,
+    defaultValue: 'en vente',
+  },
+  dateDepot: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  dateVente: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    defaultValue: null,
+  },
 }, {
   tableName: 'jeux',
   timestamps: true,
