@@ -1,63 +1,38 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../../config/database');
-const CategorieModels = require('./categorieModels');
+const mongoose = require('mongoose');
 
-const JeuModels = sequelize.define('Jeu', {
+const jeuSchema = new mongoose.Schema({
   etiquette: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
+    type: Number,
+    required: true,
+    unique: true,
+  },
+  vendeurId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vendeur',
+    required: true,
   },
   intitule: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   editeur: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   prix: {
-    type: DataTypes.DOUBLE,
-    allowNull: false,
-    validate: {
-      isFloat: true,
-      min: 0,
-    },
-  },
-  statut : {
-    type: DataTypes.ENUM('en vente', 'pas encore en vente', 'vendu'),
-    allowNull: false,
-    defaultValue: 'en vente',
+    type: Number,
+    required: true,
   },
   dateDepot: {
-    type: DataTypes.DATE,
-    allowNull: false,
+    type: Date,
+    required: true,
   },
-  dateVente: {
-    type: DataTypes.DATE,
-    allowNull: true,
-    defaultValue: null,
-  },
-}, {
-  tableName: 'jeux',
-  timestamps: true,
+  categories: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Categorie',
+    },
+  ],
 });
 
-/*
-JeuModels.associate = (models) => {
-  // Relation N-N avec Categorie
-  JeuModels.belongsToMany(models.Categorie, {
-    through: 'JeuCategorie',
-    foreignKey: 'jeuId',
-    otherKey: 'categorieId',
-  });
-
-  // Relation N-N avec Transaction
-  JeuModels.belongsToMany(models.Transaction, {
-    through: 'TransactionJeu',
-    foreignKey: 'jeuId',
-    otherKey: 'transactionId',
-  });
-};
-*/ 
-return JeuModels;
+module.exports = mongoose.model('Jeu', jeuSchema);

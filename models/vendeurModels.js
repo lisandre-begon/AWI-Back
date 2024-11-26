@@ -1,40 +1,27 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database.js');
+const mongoose = require('mongoose');
 
-const vendeurModels = sequelize.define('Vendeur', {
-  id_vendeur: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
+const vendeurSchema = new mongoose.Schema({
   nom: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   prenom: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   email: {
-    type: DataTypes.STRING,
+    type: String,
+    required: true,
     unique: true,
-    allowNull: false,
-    validate: {
-      isEmail: true,
-    },
   },
-  telephone: {
-    type: DataTypes.STRING,
-    allowNull: false,
+  adresse: {
+    type: String,
+    required: true,
   },
   solde: {
-    type: DataTypes.DOUBLE,
-    defaultValue: 0.0,
-    allowNull: false,
+    type: Number,
+    default: 0,
   },
-}, {
-  tableName: 'vendeurs',
-  timestamps: true,
 });
 
-module.exports = vendeurModels;
+module.exports = mongoose.model('Vendeur', vendeurSchema);

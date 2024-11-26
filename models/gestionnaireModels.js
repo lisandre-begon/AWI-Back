@@ -1,19 +1,19 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const gestionnaire = sequelize.define('gestionnaire', {
-  id_gestionnaire: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
+const gestionnaireSchema = new mongoose.Schema(
+  {
+    pseudo: {
+      type: String,
+      required: true,
+    },
+    mot_de_passe: {
+      type: String,
+      required: true,
+    },
   },
-  mot_de_passe: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-}, {
-  tableName: 'gestionnaires',
-  timestamps: true,
-});
+  {
+    timestamps: true,
+  }
+);
 
-module.exports = gestionnaire;
+module.exports = mongoose.model('Gestionnaire', gestionnaireSchema);

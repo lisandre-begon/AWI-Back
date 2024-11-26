@@ -1,63 +1,62 @@
-const gestionnaire = require('../models/gestionnaireModels');
-
-// Créer un gestionnaire
-exports.createGestionnaire = async (req, res) => {
+async function getGestionnaireById(req, res) {
+  const id = req.params.id; // Récupération de l'ID depuis les paramètres de la requête
   try {
-    const gestionnaire = await gestionnaire.create(req.body);
-    res.status(201).json(gestionnaire);
+    const response = await apiClient.get(`/gestionnaires/${id}`);
+    res.status(200).json(response.data);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(`Erreur lors de la récupération du gestionnaire avec l'ID ${id}:`, error);
+    res.status(500).json({ error: 'Erreur lors de la récupération du gestionnaire' });
   }
-};
+}
 
-// 
-exports.getAllgestionnaires = async (res) => {
+async function getGestionnaires(res) {
   try {
-    const gestionnaires = await gestionnaire.findAll();
-    res.status(200).json(gestionnaires);
+    const response = await apiClient.get('/gestionnaires');
+    res.status(200).json(response.data);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Erreur lors de la récupération des gestionnaires:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des gestionnaires' });
   }
-};
+}
 
-// Obtenir un gestionnaire par ID
-exports.getGestionnaireById = async (req, res) => {
+async function createGestionnaire(req, res) {
+  const gestionnaire = req.body;
   try {
-    const gestionnaire = await gestionnaire.findByPk(req.params.id);
-    if (!gestionnaire) {
-      return res.status(404).json({ message: 'gestionnaire non trouvé' });
-    }
-    res.status(200).json(gestionnaire);
+    const response = await apiClient.post('/gestionnaires', gestionnaire);
+    res.status(201).json(response.data);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Erreur lors de la création du gestionnaire:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du gestionnaire' });
   }
-};
+}
 
-// Mettre à jour un gestionnaire
-exports.updateGestionnaire = async (req, res) => {
+async function updateGestionnaire(req, res) {
+  const id = req.params.id;
+  const gestionnaire = req.body;
   try {
-    const gestionnaire = await gestionnaire.findByPk(req.params.id);
-    if (!gestionnaire) {
-      return res.status(404).json({ message: 'gestionnaire non trouvé' });
-    }
-    await gestionnaire.update(req.body);
-    res.status(200).json(gestionnaire);
+    const response = await apiClient.put(`/gestionnaires/${id}`, gestionnaire);
+    res.status(200).json(response.data);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(`Erreur lors de la mise à jour du gestionnaire avec l'ID ${id}:`, error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du gestionnaire' });
   }
-};
+}
 
-// Supprimer un gestionnaire
-exports.deleteGestionnaire = async (req, res) => {
+async function deleteGestionnaire(req, res) {
+  const id = req.params.id;
   try {
-    const gestionnaire = await gestionnaire.findByPk(req.params.id);
-    if (!gestionnaire) {
-      return res.status(404).json({ message: 'gestionnaire non trouvé' });
-    }
-    await gestionnaire.destroy();
-    res.status(204).json({ message: 'gestionnaire supprimé' });
+    await apiClient.delete(`/gestionnaires/${id}`);
+    res.status(204).end();
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(`Erreur lors de la suppression du gestionnaire avec l'ID ${id}:`, error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du gestionnaire' });
   }
-};
+}
 
+module.exports = {
+  getGestionnaireById,
+  getGestionnaires,
+  createGestionnaire,
+  updateGestionnaire,
+  deleteGestionnaire,
+};

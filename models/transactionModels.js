@@ -1,65 +1,51 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database'); 
-const Vendeur = require('./vendeurModels');
-const Gestionnaire = require('./gestionnaireModels');
-const Acheteur = require('./acheteurModels');
-const Jeu = require('./jeu/jeuModels');
+const mongoose = require('mongoose');
 
-const transactionModels = sequelize.define('Transaction', {
-  id_transac: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
-  gestionnaire: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: Gestionnaire,
-      key: 'id_gestionnaire',
+const transactionSchema = new mongoose.Schema(
+  {
+    statut: {
+      type: String,
+      enum: ['depot', 'vente', 'pas encore vendu'],
+      required: true,
     },
-  },
-  proprietaire: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: Vendeur,
-      key: 'id_vendeur',
+    gestionnaire: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Gestionnaire',
+      required: true,
     },
-  },
-  acheteur: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: Acheteur,
-      key: 'id_acheteur',
+    proprietaire: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Vendeur',
     },
-  },
-  date_transac: {
-    type: DataTypes.DATE,
-    allowNull: false,
-  },
-  remise: {
-    type: DataTypes.DOUBLE,
-    allowNull: true,
-    validate: {
-      min: 0,
+    acheteur: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Acheteur',
     },
-  },
-  frais: {
-    type: DataTypes.DOUBLE,
-    allowNull: true,
-    validate: {
-      min: 0,
+    date_transaction: {
+      type: Date,
+      required: true,
     },
+    remise: {
+      type: Number,
+      default: 0,
+    },
+    prix_total: {
+      type: Number,
+      required: true,
+    },
+    frais: {
+      type: Number,
+      required: true,
+    },
+    jeux: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Jeu',
+      },
+    ],
   },
-}, {
-  tableName: 'transactions',
-  timestamps: true,
-});
-/*
+  {
+    timestamps: true,
+  }
+);
 
-transactionModels.belongsToMany(Jeu, { through: 'TransactionJeu' });
-*/
-
-module.exports = transactionModels;
+module.exports = mongoose.model('Transaction', transactionSchema);

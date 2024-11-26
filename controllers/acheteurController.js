@@ -1,5 +1,3 @@
-const Acheteur = require('../models/acheteurModels');
-
 async function createAcheteur(req, res) {
   try {
 
@@ -43,4 +41,15 @@ async function createAcheteur(req, res) {
   }
 }
 
-module.exports = { createAcheteur };
+async function getAcheteurById(id) {
+  try {
+    const response = await apiClient.get(`/acheteurs/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors de la récupération de l'acheteur avec l'ID ${id}:`, error);
+    return null;
+  }
+}
+
+
+module.exports = { createAcheteur, getAcheteurById };

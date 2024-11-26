@@ -1,39 +1,23 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const Acheteur = sequelize.define('Acheteur', {
-  id_acheteur: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
+const acheteurSchema = new mongoose.Schema({
   nom: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   prenom: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   email: {
-    type: DataTypes.STRING,
+    type: String,
+    required: true,
     unique: true,
-    allowNull: false,
-    validate: {
-      isEmail: true,
-    },
-  },
-  telephone: {
-    type: DataTypes.STRING,
-    allowNull: false,
   },
   adresse: {
-    type: DataTypes.STRING,
-    allowNull: true,
+    type: String,
+    required: true,
   },
-}, {
-  tableName: 'acheteurs',
-  timestamps: true,
 });
 
-module.exports = Acheteur;
+module.exports = mongoose.model('Acheteur', acheteurSchema);
