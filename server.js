@@ -23,6 +23,7 @@ const vendeurRoutes = require('./routes/vendeurRoutes');
 const acheteurRoutes = require('./routes/acheteurRoutes');
 const jeuRoutes = require('./routes/jeuRoutes');
 const categorieRoutes = require('./routes/categorieRoutes');
+const gestionnaireRoutes = require('./routes/gestionnaireRoutes');
 
 // Définir la route de base
 app.get('/', (req, res) => {
@@ -35,6 +36,7 @@ app.use('/api/vendeur', vendeurRoutes);
 app.use('/api/acheteur', acheteurRoutes);
 app.use('/api/jeu', jeuRoutes);
 app.use('/api/categorie', categorieRoutes);
+app.use('/api/gestionnaire', gestionnaireRoutes);
 
 // Lancer le serveur
 exec(`lsof -i:${defaultPort}`, (err, stdout, stderr) => {
