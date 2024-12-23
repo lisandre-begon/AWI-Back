@@ -46,6 +46,27 @@ class CategorieController {
             await client.close();
         }
     }
+
+    static async getAllCategories(res) {
+        try {
+            // Connect to MongoDB
+            await client.connect();
+            const db = client.db("awidatabase"); // Use your database name
+            const categoriesCollection = db.collection("categories"); // Use your collection name
+
+            // Find all categories
+            const categories = await categoriesCollection.find().toArray();
+
+            // Respond with the found categories
+            res.status(200).json(categories);
+        } catch (error) {
+            console.error('Erreur lors de la récupération des categories:', error);
+            res.status(500).json({ message: 'Erreur lors de la récupération des categories' });
+        } finally {
+            // Ensure the MongoDB client is closed
+            await client.close();
+        }
+    }
 }
 
 module.exports = CategorieController;
