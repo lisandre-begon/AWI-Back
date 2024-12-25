@@ -12,6 +12,7 @@ class VendeurController {
             const vendeursCollection = db.collection("vendeurs");
 
             const { nom, prenom, email, telephone } = req.body;
+            const solde = 0;
 
             if (!nom) return res.status(400).json({ message: 'Le nom est requis.' });
             if (!prenom) return res.status(400).json({ message: 'Le prénom est requis.' });
@@ -31,6 +32,7 @@ class VendeurController {
                 prenom,
                 email,
                 telephone,
+                soldes: solde,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };

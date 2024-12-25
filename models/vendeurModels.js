@@ -14,7 +14,7 @@ const vendeurSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  adresse: {
+  telephone: {
     type: String,
     required: true,
   },

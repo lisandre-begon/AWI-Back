@@ -4,8 +4,8 @@ const categorieSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true, // Prevent duplicate category names
-    trim: true,   // Removes extra spaces
+    unique: true,
+    trim: true,
   },
 });
 
