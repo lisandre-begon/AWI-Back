@@ -9,29 +9,32 @@ class JeuController {
             await client.connect();
             const db = client.db("awidatabase");
             const jeuxCollection = db.collection("jeux");
+            const typeJeuxCollection = db.collection("typeJeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
 
-            const { etiquette, vendeurId, intitule, editeur, prix, categories } = req.body;
+            const { vendeurId, typeJeuId, prix, categories, quantites, statut } = req.body;
 
             if (!vendeurId) return res.status(400).json({ message: 'L\'ID du vendeur est requis.' });
-            if (!intitule) return res.status(400).json({ message: 'L\'intitulé est requis.' });
-            if (!editeur) return res.status(400).json({ message: 'L\'éditeur est requis.' });
             if (!prix || prix <= 0) return res.status(400).json({ message: 'Un prix valide est requis.' });
             if (!categories || categories.length === 0) {
                 return res.status(400).json({ message: 'Au moins une catégorie est requise.' });
             }
-
-            /*
-            const existingJeu = await jeuxCollection.findOne({ etiquette });
-            if (existingJeu) {
-                return res.status(400).json({ message: 'Un jeu avec cette étiquette existe déjà.' });
-            } */
+            if (!typeJeuId) return res.status(400).json({ message: 'L\'ID du type de jeu est requis.' });
+            if (statut && !['pas disponible', 'disponible', 'vendu'].includes(statut)) {
+                return res.status(400).json({ message: 'Statut invalide.' });
+            }
+            if (quantites <= 0) return res.status(400).json({ message: 'Une quantité valide est requise.' });
 
             // Validation du vendeur
             const vendeurExists = await vendeursCollection.findOne({ _id: new ObjectId(vendeurId) });
             if (!vendeurExists) {
                 return res.status(404).json({ message: 'Le vendeur spécifié n\'existe pas.' });
+            }
+
+            const typeJeuExists = await typeJeuxCollection.findOne({ _id: new ObjectId(typeJeuId) });
+            if (!typeJeuExists) {
+                return res.status(404).json({ message: 'Le type de jeu spécifié n\'existe pas.' });
             }
 
             // Validation des catégories
@@ -46,16 +49,25 @@ class JeuController {
                 });
             }
 
-            const newJeu = {
-                vendeurId: new ObjectId(vendeurId),
-                intitule,
-                editeur,
-                prix: parseFloat(prix),
-                categories: categories.map(id => new ObjectId(id)),
-                createdAt: new Date(),
-            };
-
-            await jeuxCollection.insertOne(newJeu);
+            //Cas où le jeu est déjà en vente par le même vendeur
+            const jeuEnVente = await jeuxCollection.findOne({ vendeurId: new ObjectId(vendeurId), typeJeuId: new ObjectId(typeJeuId) });
+            if (jeuEnVente) {
+                //On rajoute juste la quantité a la quantité du jeu existant
+                const newQuantite = jeuEnVente.quantites + parseInt(quantites);
+                await jeuxCollection.updateOne({ _id: jeuEnVente._id }, { $set: { quantites: newQuantite } });
+                return res.status(201).json({ message: 'Quantité du jeu mise à jour avec succès.' });
+            } else {
+                const newJeu = {
+                    vendeurId: new ObjectId(vendeurId),
+                    typeJeuId: new ObjectId(typeJeuId),
+                    statut: statut || 'disponible',
+                    prix: parseFloat(prix),
+                    quantites: parseInt(quantites) || 1,
+                    categories: categories.map(id => new ObjectId(id)),
+                    createdAt: new Date(),
+                };
+                await jeuxCollection.insertOne(newJeu);
+            }
 
             res.status(201).json({ message: 'Jeu créé avec succès.' });
         } catch (error) {
@@ -72,6 +84,7 @@ class JeuController {
             await client.connect();
             const db = client.db("awidatabase");
             const jeuxCollection = db.collection("jeux");
+            const typeJeuxCollection = db.collection("typeJeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
     
@@ -88,6 +101,7 @@ class JeuController {
             // Fetch vendeurs and categories to map their names
             const vendeurs = await vendeursCollection.find().toArray();
             const categories = await categoriesCollection.find().toArray();
+            const typeJeux = await typeJeuxCollection.find().toArray();
     
             const vendeursMap = vendeurs.reduce((map, vendeur) => {
                 map[vendeur._id.toString()] = vendeur.nom;
@@ -98,13 +112,21 @@ class JeuController {
                 map[category._id.toString()] = category.name;
                 return map;
             }, {});
+
+            //Pour obtenir l'intitule et l'éditeur
+            const typeJeuxMap = typeJeux.reduce((map, typeJeu) => {
+                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
+                return map;
+            }, {});
+
     
             const jeuWithDetails = {
                 etiquette: jeu._id,
                 vendeur: vendeursMap[jeu.vendeurId?.toString()], // Map vendeur ID to name
-                intitule: jeu.intitule,
-                editeur: jeu.editeur,
+                intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
+                editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
                 prix: jeu.prix,
+                statut: jeu.statut,
                 categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
                 createdAt: jeu.createdAt,
             };
@@ -126,6 +148,7 @@ class JeuController {
             const jeuxCollection = db.collection("jeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
+            const typeJeuxCollection = db.collection("typeJeux");
     
             if (!ObjectId.isValid(vendeurId)) {
                 return res.status(404).json({ message: 'Vendeur non trouvé.' });
@@ -140,6 +163,7 @@ class JeuController {
             // Fetch vendeurs and categories to map their names
             const vendeurs = await vendeursCollection.find().toArray();
             const categories = await categoriesCollection.find().toArray();
+            const typeJeux = await typeJeuxCollection.find().toArray();
     
             const vendeursMap = vendeurs.reduce((map, vendeur) => {
                 map[vendeur._id.toString()] = vendeur.nom;
@@ -150,15 +174,22 @@ class JeuController {
                 map[category._id.toString()] = category.name;
                 return map;
             }, {});
+
+            const typeJeuxMap = typeJeux.reduce((map, typeJeu) => {
+                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
+                return map;
+            }, {});
     
             const jeuxWithDetails = jeux.map(jeu => ({
                 etiquette: jeu._id,
                 vendeur: vendeursMap[jeu.vendeurId?.toString()], // Map vendeur ID to name
-                intitule: jeu.intitule,
-                editeur: jeu.editeur,
+                intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
+                editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
+                statut: jeu.statut,
                 prix: jeu.prix,
+                quantites: jeu.quantites,
                 categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
-                createdAt: jeu.createdAt,
+                dateDepot: jeu.createdAt,
             }));
     
             res.status(200).json(jeuxWithDetails);
@@ -179,11 +210,13 @@ class JeuController {
             const jeuxCollection = db.collection("jeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
+            const typeJeuxCollection = db.collection("typeJeux");
     
             const jeux = await jeuxCollection.find().toArray();
     
             const vendeurs = await vendeursCollection.find().toArray();
             const categories = await categoriesCollection.find().toArray();
+            const typeJeux = await typeJeuxCollection.find().toArray();
     
             const vendeursMap = vendeurs.reduce((map, vendeur) => {
                 map[vendeur._id.toString()] = vendeur.nom;
@@ -194,16 +227,23 @@ class JeuController {
                 map[category._id.toString()] = category.name; // Map category ID to name
                 return map;
             }, {});
+
+            const typeJeuxMap = typeJeux.reduce((map, typeJeu) => {
+                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
+                return map;
+            }, {});
     
             // Map over games to replace IDs with names
             const jeuxWithDetails = jeux.map(jeu => ({
                 etiquette: jeu._id,
                 vendeur: vendeursMap[jeu.vendeurId?.toString()], // Get vendeur name from map
-                intitule: jeu.intitule,
-                editeur: jeu.editeur,
+                intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
+                editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
+                statut: jeu.statut,
                 prix: jeu.prix,
+                quantites: jeu.quantites,
                 categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
-                createdAt: jeu.createdAt
+                dateDepot: jeu.createdAt
             }));
     
             res.status(200).json(jeuxWithDetails);
@@ -223,14 +263,15 @@ class JeuController {
             const jeuxCollection = db.collection("jeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
+            const typeJeuxCollection = db.collection("typeJeux");
     
             if (!ObjectId.isValid(id)) {
                 return res.status(404).json({ message: 'Jeu non trouvé.' });
             }
     
-            const { vendeurId, categories, dateVente, intitule, editeur, prix } = req.body;
+            const { vendeurId, categories, dateVente, statut, prix, quantites, typeJeuId } = req.body;
     
-            // Validation du vendeur
+            // Validation of vendeur
             if (vendeurId) {
                 const vendeurExists = await vendeursCollection.findOne({ _id: new ObjectId(vendeurId) });
                 if (!vendeurExists) {
@@ -238,7 +279,15 @@ class JeuController {
                 }
             }
     
-            // Validation des catégories
+            // Validation of typeJeuId
+            if (typeJeuId) {
+                const typeJeuExists = await typeJeuxCollection.findOne({ _id: new ObjectId(typeJeuId) });
+                if (!typeJeuExists) {
+                    return res.status(404).json({ message: 'Le type de jeu spécifié n\'existe pas.' });
+                }
+            }
+    
+            // Validation of categories
             if (categories && categories.length > 0) {
                 const invalidCategories = [];
                 for (const categoryId of categories) {
@@ -254,12 +303,13 @@ class JeuController {
     
             const updateFields = {
                 ...(vendeurId && { vendeurId: new ObjectId(vendeurId) }),
+                ...(typeJeuId && { typeJeuId: new ObjectId(typeJeuId) }),
                 ...(categories && { categories: categories.map(id => new ObjectId(id)) }),
                 ...(dateVente && { dateVente: new Date(dateVente) }),
-                ...(intitule && { intitule }),
-                ...(editeur && { editeur }),
-                ...(prix && { prix }),
-                updatedAt: new Date()
+                ...(statut && { statut }),
+                ...(prix && prix > 0 && { prix: parseFloat(prix) }),
+                ...(quantites && quantites > 0 && { quantites: parseInt(quantites) }),
+                updatedAt: new Date(),
             };
     
             const result = await jeuxCollection.updateOne({ _id: new ObjectId(id) }, { $set: updateFields });
@@ -276,7 +326,7 @@ class JeuController {
             await client.close();
         }
     }
-    
+        
     static async deleteJeu(req, res) {
         const id = req.params.id;
         try {
@@ -285,6 +335,11 @@ class JeuController {
             const jeuxCollection = db.collection("jeux");
     
             if (!ObjectId.isValid(id)) {
+                return res.status(404).json({ message: 'Jeu non trouvé.' });
+            }
+    
+            const jeu = await jeuxCollection.findOne({ _id: new ObjectId(id) });
+            if (!jeu) {
                 return res.status(404).json({ message: 'Jeu non trouvé.' });
             }
     
@@ -301,7 +356,7 @@ class JeuController {
         } finally {
             await client.close();
         }
-    }    
+    }
 }
 
 module.exports = JeuController;

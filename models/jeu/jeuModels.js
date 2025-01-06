@@ -18,15 +18,18 @@ const jeuSchema = new mongoose.Schema(
     statut: {
       type: String,
       enum: ['pas disponible', "disponible", 'vendu'],
+      default: 'disponible',
     },
-    intitule: {
-      type: String,
+    typeJeuId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'TypeJeu',
       required: true,
     },
-    editeur: {
-      type: String,
+    quantites: {
+      type: Number,
       required: true,
-    },
+      default: 1,
+    }
     prix: {
       type: Number,
       required: true,
@@ -41,9 +44,6 @@ const jeuSchema = new mongoose.Schema(
     dateDepot: {
       type: Date,
       alias: 'createdAt',
-    },
-    dateVente: {
-      type: Date,
     },
   },
   {

@@ -4,7 +4,7 @@ const transactionSchema = new mongoose.Schema(
   {
     statut: {
       type: String,
-      enum: ['depot', 'vente', 'pas encore vendu'],
+      enum: ['pas disponible', 'disponible', 'vendu'],
       required: true,
     },
     gestionnaire: {
