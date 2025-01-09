@@ -31,8 +31,6 @@ class AcheteurController {
                 prenom,
                 email,
                 adresse,
-                createdAt: new Date(),
-                updatedAt: new Date(),
             };
 
             await acheteursCollection.insertOne(newAcheteur);

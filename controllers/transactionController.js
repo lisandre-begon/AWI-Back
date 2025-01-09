@@ -1,76 +1,3 @@
-/*const { getFilteredTransactions, createDepot } = require('../services/transactionService');
-
-//ATTENTION A NE PAS SUPPRIMER LE CODE CI-DESSOUS, C'EST CELUI QUE L'ON VA UTILISER QUAND ON AURA LA BASE DE DONNEE
-
-async function getTransactions(req, res) {
-  try {
-    const filters = {
-      statut: req.query.statut || null, // 'depot' ou 'vente' ou 'pas encore en vente'
-      id_acheteur: req.query.id_acheteur || null,
-      id_vendeur: req.query.id_vendeur || null,
-      categorie: req.query.categorie || null,
-      intitule: req.query.intitule || null,
-      editeur: req.query.editeur || null,
-      page: req.query.page || 1,
-      limit: 15,
-      sort: req.query.sort || 'date_desc', // Option de tri
-    };
-
-    const isAdmin = 'true'
-    const transactions = await getFilteredTransactions(filters, filters.page, filters.sort, isAdmin);
-
-    if (transactions.length === 0) {
-      return res.status(404).json({ message: 'Aucune transaction correspondant aux critères trouvée.' });
-    }
-
-    res.status(200).json(transactions);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des transactions :', error);
-    res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions.' });
-  }
-}
-
-async function getTransactionById(id) {
-  try {
-    const response = await apiClient.get(`/transactions/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Erreur lors de la récupération de la transaction avec l'ID ${id}:`, error);
-    return null;
-  }
-}
-
-async function createTransaction(req, res) {
-  try {
-    const champs = req.body;
-    if (champs.id_vendeur) {
-      if (champs.id_acheteur) {
-        return res.status(400).json({ message: 'Un dépôt ne peut pas avoir d\'acheteur.' });
-      }
-      // Appeler la fonction asynchrone createDepot
-      const depotResult = await createDepot(req, res);
-      return res.status(201).json(depotResult);
-    } else if (champs.id_acheteur) {
-      if (!champs.id_vendeur) {
-        return res.status(400).json({ message: 'Une vente ne possède pas de propriétaire.' });
-      }
-      // Appeler la fonction asynchrone createVente
-      const venteResult = await createVente(req, res);
-      return res.status(201).json(venteResult);
-    } else {
-      return res.status(400).json({ message: 'Le vendeur ou l\'acheteur doit être spécifié.' });
-    }
-  } catch (error) {
-    console.error('Erreur lors de la création de la transaction:', error);
-    return res.status(500).json({ message: 'Erreur interne du serveur.' });
-  }
-}
-
-
-
-module.exports = { getTransactions, createTransaction};
-*/
-
 const { MongoClient, ObjectId } = require('mongodb');
 
 const uri = "mongodb+srv://lisandrebegon1:czbssegw5de6kicv@awidatabase.1z4go.mongodb.net/?retryWrites=true&w=majority";
@@ -85,117 +12,162 @@ class TransactionController {
       const transactionCollection = db.collection('transactions');
       const jeuxCollection = db.collection("jeux");
       const vendeursCollection = db.collection("vendeurs");
+      const acheteursCollection = db.collection("acheteurs");
 
-      const { statut, gestionnaire, proprietaire, acheteur, remise, prix_total, frais, jeux } = req.body;
+      const { gestionnaire, proprietaire, acheteur, prix_total, frais, jeux } = req.body;
 
-      if (!statut || !['pas disponible', 'disponible', 'vendu'].includes(statut)) {
-        return res.status(400).json({ message: 'Statut invalide ou manquant.' });
-      }
-
-      if (!gestionnaire) {
-        return res.status(400).json({ message: 'Un gestionnaire est requis.' });
+      // Validation des entrées
+      if (!gestionnaire || !ObjectId.isValid(gestionnaire)) {
+        return res.status(400).json({ message: 'Un ID de gestionnaire valide est requis.' });
       }
 
       if (!prix_total || prix_total <= 0) {
-          return res.status(400).json({ message: 'Un prix total valide est requis.' });
+        return res.status(400).json({ message: 'Un prix total valide est requis.' });
       }
 
       if (!frais || frais < 0) {
-          return res.status(400).json({ message: 'Des frais valides sont requis.' });
+        return res.status(400).json({ message: 'Des frais valides sont requis.' });
       }
 
       if (!proprietaire && !acheteur) {
-          return res.status(400).json({ message: 'Un propriétaire ou un acheteur est requis.' });
+        return res.status(400).json({ message: 'Un propriétaire ou un acheteur est requis.' });
       }
 
       if (proprietaire && acheteur) {
-          return res.status(400).json({ message: 'Un propriétaire ou un acheteur est requis, pas les deux.' });
+        return res.status(400).json({ message: 'Un propriétaire ou un acheteur est requis, pas les deux.' });
       }
 
-      if (proprietaire) {
-        const proprietaireExists = await vendeursCollection.findOne({ _id: ObjectId(proprietaire) });
-        if (!proprietaireExists) {
-            return res.status(404).json({ message: 'Le propriétaire spécifié n\'existe pas.' });
-        }
-      } else if (acheteur) {
-        const acheteurExists = await acheteursCollection.findOne({ _id: ObjectId(acheteur) });
-        if (!acheteurExists) {
-            return res.status(404).json({ message: 'L\'acheteur spécifié n\'existe pas.' });
-        }
-      }
-
-
-      const gestionnaireExists = await gestionnaireCollection.findOne({ _id: ObjectId(gestionnaire) });
+      const gestionnaireExists = await gestionnaireCollection.findOne({ _id: new ObjectId(gestionnaire) });
       if (!gestionnaireExists) {
-          return res.status(404).json({ message: 'Le gestionnaire spécifié n\'existe pas.' });
+        return res.status(404).json({ message: 'Le gestionnaire spécifié n\'existe pas.' });
       }
 
-      // Validate jeux
-      if (jeux && jeux.length > 0) {
-          const invalidJeux = [];
-          for (const jeuId of jeux) {
-              const jeuExists = await jeuxCollection.findOne({ _id: ObjectId(jeuId) });
-              if (!jeuExists) invalidJeux.push(jeuId);
+      // Dépôt
+      if (proprietaire) {
+        if (!ObjectId.isValid(proprietaire)) {
+          return res.status(400).json({ message: 'Un ID de propriétaire valide est requis.' });
+        }
+
+        const proprietaireExists = await vendeursCollection.findOne({ _id: new ObjectId(proprietaire) });
+        if (!proprietaireExists) {
+          return res.status(404).json({ message: 'Le propriétaire spécifié n\'existe pas.' });
+        }
+
+        const invalidJeux = [];
+        for (const jeu of jeux) {
+          if (!ObjectId.isValid(jeu.jeuId)) {
+            invalidJeux.push(jeu.jeuId);
+            continue;
           }
 
-          if (invalidJeux.length > 0) {
-              return res.status(404).json({
-                  message: `Les jeux suivants n\'existent pas : ${invalidJeux.join(', ')}`,
-              });
+          const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+          if (!jeuData) {
+            invalidJeux.push(jeu.jeuId);
+            continue;
           }
 
-          //Check if all games are not already in a transaction
-          const alreadyInTransaction = [];
-          for (const jeuId of jeux) {
-              const jeu = await jeuxCollection.findOne({ _id: ObjectId(jeuId) });
-              if (jeu.statut != 'disponible') alreadyInTransaction.push(jeuId);
+          if (!jeuData.vendeurId.equals(new ObjectId(proprietaire))) {
+            invalidJeux.push(jeu.jeuId);
           }
 
-          if (alreadyInTransaction.length > 0) {
-              return res.status(400).json({
-                  message: `Les jeux suivants sont déjà dans une transaction : ${alreadyInTransaction.join(', ')}`,
-              });
+          // Vérifiez les quantités impliquées dans des transactions existantes
+          const transactions = await transactionCollection.find({ "jeux.jeuId": new ObjectId(jeu.jeuId) }).toArray();
+          const totalQuantiteTransactions = transactions.reduce((sum, transaction) => {
+            const jeuTransaction = transaction.jeux.find(j => j.jeuId.toString() === jeu.jeuId);
+            return sum + (jeuTransaction ? jeuTransaction.quantite : 0);
+          }, 0);
+
+          const nouvelleQuantite = totalQuantiteTransactions + jeu.quantite;
+          if (nouvelleQuantite > jeuData.quantites) {
+            return res.status(400).json({
+              message: `Quantité pour le jeu ${jeuData._id} dépasse la quantité disponible (${jeuData.quantites}).`,
+            });
           }
-          
-          //Check if all games have the proprietaire as owner
-          if (proprietaire) {
-              const proprietaireExists = await vendeursCollection.findOne({ _id: ObjectId(proprietaire) });
-              if (!proprietaireExists) {
-                  return res.status(404).json({ message: 'Le propriétaire spécifié n\'existe pas.' });
-              }
+        }
 
-              const invalidJeux = [];
-              for (const jeuId of jeux) {
-                  const jeu = await jeuxCollection.findOne({ _id: ObjectId(jeuId) });
-                  if (jeu.proprietaire != proprietaire) invalidJeux.push(jeuId);
-              }
+        if (invalidJeux.length > 0) {
+          return res.status(400).json({
+            message: `Les jeux suivants n'appartiennent pas au propriétaire spécifié ou sont invalides : ${invalidJeux.join(', ')}`,
+          });
+        }
 
-              if (invalidJeux.length > 0) {
-                  return res.status(400).json({
-                      message: `Les jeux suivants n\'appartiennent pas au propriétaire spécifié : ${invalidJeux.join(', ')}`,
-                  });
-              }
-          }
-      } else {
-          return res.status(400).json({ message: 'Au moins un jeu est requis.' });
-      }
-
-      const newTransaction = {
-          statut,
-          gestionnaire: ObjectId(gestionnaire),
-          proprietaire: proprietaire ? ObjectId(proprietaire) : null,
-          acheteur: acheteur ? ObjectId(acheteur) : null,
+        // Créez la transaction pour le dépôt
+        const newDepot = {
+          statut: 'depot',
+          gestionnaire: new ObjectId(gestionnaire),
+          proprietaire: new ObjectId(proprietaire),
           date_transaction: new Date(),
-          remise: remise || 0,
           prix_total,
           frais,
-          jeux: jeux.map(jeuId => ObjectId(jeuId)),
-      };
+          jeux: jeux.map(jeu => ({
+            jeuId: new ObjectId(jeu.jeuId),
+            quantite: jeu.quantite,
+            prix_unitaire: jeu.prix_unitaire,
+          })),
+        };
 
-      await transactionCollection.insertOne(newTransaction);
-      res.status(201).json({ message: 'Transaction créée avec succès.'});
-    }
-    catch (error) {
+        await transactionCollection.insertOne(newDepot);
+        return res.status(201).json({ message: "Dépot créé avec succès.", transaction: newDepot });
+
+      } else if (acheteur) {
+        // Vente
+        if (!ObjectId.isValid(acheteur)) {
+          return res.status(400).json({ message: 'Un ID d\'acheteur valide est requis.' });
+        }
+
+        const acheteurExists = await acheteursCollection.findOne({ _id: new ObjectId(acheteur) });
+        if (!acheteurExists) {
+          return res.status(404).json({ message: 'L\'acheteur spécifié n\'existe pas.' });
+        }
+
+        const invalidJeux = [];
+        for (const jeu of jeux) {
+          const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+          if (!jeuData || jeuData.statut !== 'disponible') {
+            invalidJeux.push(jeu.jeuId);
+            continue;
+          }
+
+          if (jeuData.quantites < jeu.quantite) {
+            return res.status(400).json({
+              message: `Quantité pour le jeu ${jeuData._id} dépasse la quantité disponible (${jeuData.quantites}).`,
+            });
+          }
+        }
+
+        if (invalidJeux.length > 0) {
+          return res.status(400).json({
+            message: `Les jeux suivants ne sont pas disponibles ou sont invalides : ${invalidJeux.join(', ')}`,
+          });
+        }
+
+        // Mise à jour des quantités et création de la transaction
+        for (const jeu of jeux) {
+          await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $inc: { quantites: -jeu.quantite } });
+          const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+          if (jeuData.quantites === 0) {
+            await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $set: { statut: 'vendu' } });
+          }
+        }
+
+        const newVente = {
+          statut: 'vente',
+          gestionnaire: new ObjectId(gestionnaire),
+          acheteur: new ObjectId(acheteur),
+          date_transaction: new Date(),
+          prix_total,
+          frais,
+          jeux: jeux.map(jeu => ({
+            jeuId: new ObjectId(jeu.jeuId),
+            quantite: jeu.quantite,
+            prix_unitaire: jeu.prix_unitaire,
+          })),
+        };
+
+        await transactionCollection.insertOne(newVente);
+        return res.status(201).json({ message: "Vente créée avec succès.", transaction: newVente });
+      }
+    } catch (error) {
       console.error('Erreur lors de la récupération des transactions :', error);
       res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions.' });
     }

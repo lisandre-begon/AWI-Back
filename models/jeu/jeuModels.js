@@ -11,13 +11,9 @@ const jeuSchema = new mongoose.Schema(
       ref: 'Vendeur',
       required: true,
     },
-    acheteurId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Acheteur',
-    },
     statut: {
       type: String,
-      enum: ['pas disponible', "disponible", 'vendu'],
+      enum: ["pas disponible", "disponible", "vendu"],
       default: 'disponible',
     },
     typeJeuId: {
@@ -29,7 +25,7 @@ const jeuSchema = new mongoose.Schema(
       type: Number,
       required: true,
       default: 1,
-    }
+    },
     prix: {
       type: Number,
       required: true,

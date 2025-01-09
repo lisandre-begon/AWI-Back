@@ -4,7 +4,7 @@ const transactionSchema = new mongoose.Schema(
   {
     statut: {
       type: String,
-      enum: ['pas disponible', 'disponible', 'vendu'],
+      enum: ["depot", "vente"],
       required: true,
     },
     gestionnaire: {
@@ -38,9 +38,21 @@ const transactionSchema = new mongoose.Schema(
     },
     jeux: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Jeu',
-      },
+        jeuId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Jeu',
+          required: true,
+        },
+        quantite: {
+          type: Number,
+          required: true,
+        },
+        prix_unitaire: {
+          type: Number,
+          required: true,
+        },
+      }
+      
     ],
   },
   {

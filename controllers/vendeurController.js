@@ -33,8 +33,6 @@ class VendeurController {
                 email,
                 telephone,
                 soldes: solde,
-                createdAt: new Date(),
-                updatedAt: new Date(),
             };
 
             await vendeursCollection.insertOne(newVendeur);

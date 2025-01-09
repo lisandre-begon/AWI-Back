@@ -51,21 +51,21 @@ class JeuController {
 
             //Cas où le jeu est déjà en vente par le même vendeur
             const jeuEnVente = await jeuxCollection.findOne({ vendeurId: new ObjectId(vendeurId), typeJeuId: new ObjectId(typeJeuId) });
-            if (jeuEnVente) {
+            const newJeu = {
+                vendeurId: new ObjectId(vendeurId),
+                typeJeuId: new ObjectId(typeJeuId),
+                statut: statut || 'disponible',
+                prix: parseFloat(prix),
+                quantites: parseInt(quantites) || 1,
+                categories: categories.map(id => new ObjectId(id)),
+                createdAt: new Date(),
+            };
+            if (jeuEnVente && jeuEnVente.statut === 'disponible') {
                 //On rajoute juste la quantité a la quantité du jeu existant
                 const newQuantite = jeuEnVente.quantites + parseInt(quantites);
                 await jeuxCollection.updateOne({ _id: jeuEnVente._id }, { $set: { quantites: newQuantite } });
-                return res.status(201).json({ message: 'Quantité du jeu mise à jour avec succès.' });
+                return res.status(201).json({ message: 'Quantité du jeu mise à jour avec succès.', jeu: newJeu });
             } else {
-                const newJeu = {
-                    vendeurId: new ObjectId(vendeurId),
-                    typeJeuId: new ObjectId(typeJeuId),
-                    statut: statut || 'disponible',
-                    prix: parseFloat(prix),
-                    quantites: parseInt(quantites) || 1,
-                    categories: categories.map(id => new ObjectId(id)),
-                    createdAt: new Date(),
-                };
                 await jeuxCollection.insertOne(newJeu);
             }
 

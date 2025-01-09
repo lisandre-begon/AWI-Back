@@ -3,8 +3,8 @@ const { connectDB } = require('./config/database');
 const { exec } = require('child_process');
 
 const app = express();
-const defaultPort = 3000;
-const fallbackPort = 5000;
+const defaultPort = 5000;
+const fallbackPort = 5050;
 
 // Middleware pour analyser les requêtes JSON
 app.use(express.json());

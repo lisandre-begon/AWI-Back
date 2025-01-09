@@ -23,8 +23,6 @@ class GestionnaireController {
             const newGestionnaire = {
                 pseudo,
                 mot_de_passe,
-                createdAt: new Date(),
-                updatedAt: new Date(),
             };
 
             await gestionnairesCollection.insertOne(newGestionnaire);
