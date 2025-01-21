@@ -208,6 +208,83 @@ class TransactionController {
     }
   }
 
+  static async getFilteredTransactions(req, res) {
+    try {
+      await client.connect();
+      const db = client.db("awidatabase");
+      const transactionCollection = db.collection("transactions");
+
+      const {
+        statut,
+        vendeurId,
+        acheteurId,
+        gestionnaire,
+        remise,
+        prixMin,
+        prixMax
+      } = req.query;
+
+      const filters = {};
+
+      // Apply filters based on query parameters
+      if (statut) {
+        filters.statut = statut;
+      }
+
+      if (vendeurId && ObjectId.isValid(vendeurId)) {
+        filters["jeux.vendeurId"] = new ObjectId(vendeurId);
+      }
+
+      if (acheteurId && ObjectId.isValid(acheteurId)) {
+        filters.acheteur = new ObjectId(acheteurId);
+      }
+
+      if (gestionnaire && ObjectId.isValid(gestionnaire)) {
+        filters.gestionnaire = new ObjectId(gestionnaire);
+      }
+
+      if (remise !== undefined) {
+        filters.remise = { $gt: 0 };
+      }
+
+      if (prixMin !== undefined || prixMax !== undefined) {
+        filters.prix_total = {};
+        if (prixMin !== undefined) {
+          filters.prix_total.$gte = parseFloat(prixMin);
+        }
+        if (prixMax !== undefined) {
+          filters.prix_total.$lte = parseFloat(prixMax);
+        }
+      }
+
+      // If no filters are applied, call getTransactions
+      if (Object.keys(filters).length === 0) {
+        return TransactionController.getTransactions(req, res);
+      }
+
+      const transactions = await transactionCollection.find(filters).toArray();
+      res.status(200).json(transactions);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des transactions filtrées :', error);
+      res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions filtrées.' });
+    } finally {
+      await client.close();
+    }
+  }
+
+  static async getTransactions(req, res) {
+    try {
+      await client.connect();
+      const db = client.db("awidatabase");
+      const transactionCollection = db.collection("transactions");
+      const transactions = await transactionCollection.find().toArray();
+      res.status(200).json(transactions);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des transactions :', error);
+      res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions.' });
+    }
+  }
+
   static async getTransactionById(req, res) {
     try {
       await client.connect();
