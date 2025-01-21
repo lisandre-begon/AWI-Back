@@ -4,7 +4,7 @@ const uri = "mongodb+srv://lisandrebegon1:czbssegw5de6kicv@awidatabase.1z4go.mon
 const client = new MongoClient(uri);
 
 class TransactionController {
-  static async createTransactions(req, res) {
+  static async createTransaction(req, res) {
     try {
       await client.connect();
       const db = client.db('awidatabase');
@@ -14,7 +14,7 @@ class TransactionController {
       const vendeursCollection = db.collection("vendeurs");
       const acheteursCollection = db.collection("acheteurs");
 
-      const { gestionnaire, proprietaire, acheteur, prix_total, frais, jeux } = req.body;
+      const { gestionnaire, proprietaire, acheteur, prix_total, frais, jeux, remise } = req.body;
 
       // Validation des entrées
       if (!gestionnaire || !ObjectId.isValid(gestionnaire)) {
@@ -40,6 +40,10 @@ class TransactionController {
       const gestionnaireExists = await gestionnaireCollection.findOne({ _id: new ObjectId(gestionnaire) });
       if (!gestionnaireExists) {
         return res.status(404).json({ message: 'Le gestionnaire spécifié n\'existe pas.' });
+      }
+
+      if (remise < 0 || remise > frais) {
+        return res.status(400).json({ message: 'La remise doit être comprise entre 0 et les frais.' });
       }
 
       // Dépôt
@@ -91,6 +95,10 @@ class TransactionController {
           });
         }
 
+        //On met à jour le solde du propriétaire (solde = solde - frais)
+        await vendeursCollection.updateOne({ _id: new ObjectId(proprietaire) }, { $inc: { solde: -frais } });
+
+
         // Créez la transaction pour le dépôt
         const newDepot = {
           statut: 'depot',
@@ -98,6 +106,7 @@ class TransactionController {
           proprietaire: new ObjectId(proprietaire),
           date_transaction: new Date(),
           prix_total,
+          remise: remise || 0,
           frais,
           jeux: jeux.map(jeu => ({
             jeuId: new ObjectId(jeu.jeuId),
@@ -106,6 +115,7 @@ class TransactionController {
           })),
         };
 
+        await vendeursCollection.updateOne({ _id: new ObjectId(acheteur) }, { $inc: { solde: -frais + remise } });
         await transactionCollection.insertOne(newDepot);
         return res.status(201).json({ message: "Dépot créé avec succès.", transaction: newDepot });
 
@@ -150,6 +160,12 @@ class TransactionController {
           }
         }
 
+        //Pour chaque jeu vendu on modifie le solde du propriétaire (solde = solde + prix_unitaire * quantite)
+        for (const jeu of jeux) {
+          const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+          await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.vendeurId) }, { $inc: { solde: jeu.prix_unitaire * jeu.quantite } });
+        }
+
         const newVente = {
           statut: 'vente',
           gestionnaire: new ObjectId(gestionnaire),
@@ -164,12 +180,234 @@ class TransactionController {
           })),
         };
 
+        //Pour chaque jeu vendu on modifie le solde du propriétaire (solde = solde + prix_unitaire * quantite)
+        for (const jeu of newVente.jeux) {
+          const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+          await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.vendeurId) }, { $inc: { soldes: jeu.prix_unitaire * jeu.quantite } });
+        }
+
         await transactionCollection.insertOne(newVente);
         return res.status(201).json({ message: "Vente créée avec succès.", transaction: newVente });
       }
     } catch (error) {
       console.error('Erreur lors de la récupération des transactions :', error);
       res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions.' });
+    }
+  }
+
+  static async getTransactions(req, res) {
+    try {
+      await client.connect();
+      const db = client.db('awidatabase');
+      const transactionCollection = db.collection('transactions');
+      const transactions = await transactionCollection.find().toArray();
+      res.status(200).json(transactions);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des transactions :', error);
+      res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions.' });
+    }
+  }
+
+  static async getTransactionById(req, res) {
+    try {
+      await client.connect();
+      const db = client.db('awidatabase');
+      const transactionCollection = db.collection('transactions');
+      const transaction = await transactionCollection.findOne({ _id: new ObjectId(req.params.id) });
+      if (!transaction) {
+        return res.status(404).json({ message: 'Transaction non trouvée.' });
+      }
+      res.status(200).json(transaction);
+    } catch (error) {
+      console.error('Erreur lors de la récupération de la transaction :', error);
+      res.status(500).json({ message: 'Erreur serveur lors de la récupération de la transaction.' });
+    }
+  }
+
+  static async updateTransaction(req, res) {
+    const id = req.params.id;
+    const { proprietaire, acheteur, jeux, prix_total, frais, remise } = req.body;
+
+    try {
+      await client.connect();
+      const db = client.db("awidatabase");
+      const transactionsCollection = db.collection("transactions");
+      const vendeursCollection = db.collection("vendeurs");
+      const acheteursCollection = db.collection("acheteurs");
+      const jeuxCollection = db.collection("jeux");
+
+      // Validate transaction ID
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ message: 'ID de transaction invalide.' });
+      }
+
+      const existingTransaction = await transactionsCollection.findOne({ _id: new ObjectId(id) });
+      if (!existingTransaction) {
+        return res.status(404).json({ message: 'Transaction non trouvée.' });
+      }
+
+      // Validate proprietaire or acheteur (one is required, not both)
+      if (!proprietaire && !acheteur) {
+        return res.status(400).json({ message: 'Un propriétaire ou un acheteur est requis.' });
+      }
+
+      if (proprietaire && acheteur) {
+        return res.status(400).json({ message: 'Un propriétaire ou un acheteur est requis, pas les deux.' });
+      }
+
+      if (proprietaire && !ObjectId.isValid(proprietaire)) {
+        return res.status(400).json({ message: 'ID de propriétaire invalide.' });
+      }
+
+      if (acheteur && !ObjectId.isValid(acheteur)) {
+        return res.status(400).json({ message: 'ID d\'acheteur invalide.' });
+      }
+
+      if (proprietaire) {
+        const proprietaireExists = await vendeursCollection.findOne({ _id: new ObjectId(proprietaire) });
+        if (!proprietaireExists) {
+          return res.status(404).json({ message: 'Propriétaire non trouvé.' });
+        }
+      }
+
+      if (acheteur) {
+        const acheteurExists = await acheteursCollection.findOne({ _id: new ObjectId(acheteur) });
+        if (!acheteurExists) {
+          return res.status(404).json({ message: 'Acheteur non trouvé.' });
+        }
+      }
+
+      // Extract existing jeux and compare with the new jeux
+      const existingJeux = existingTransaction.jeux || [];
+      const newJeuxMap = new Map(jeux.map(jeu => [jeu.jeuId, jeu]));
+
+      const removedJeux = existingJeux.filter(jeu => !newJeuxMap.has(jeu.jeuId.toString()));
+      const addedJeux = jeux.filter(jeu => !existingJeux.some(eJeu => eJeu.jeuId.toString() === jeu.jeuId));
+
+      // Handle removed jeux
+      for (const jeu of removedJeux) {
+        const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+
+        if (existingTransaction.statut === 'depot') {
+          // Revert dépôt updates for the jeu
+          await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $inc: { quantites: jeu.quantite } });
+        } else if (existingTransaction.statut === 'vente') {
+          // Revert vente updates for the jeu
+          await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $inc: { quantites: jeu.quantite } });
+          if (jeuData.quantites === 0) {
+            await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $set: { statut: 'disponible' } });
+          }
+          await vendeursCollection.updateOne(
+            { _id: new ObjectId(jeuData.vendeurId) },
+            { $inc: { soldes: -(jeu.prix_unitaire * jeu.quantite) } }
+          );
+        }
+      }
+
+      // Handle added jeux
+      for (const jeu of addedJeux) {
+        const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+
+        if (existingTransaction.statut === 'depot') {
+          // Apply dépôt updates for the jeu
+          await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $inc: { quantites: -jeu.quantite } });
+        } else if (existingTransaction.statut === 'vente') {
+          // Apply vente updates for the jeu
+          await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $inc: { quantites: -jeu.quantite } });
+          if (jeuData.quantites === 0) {
+            await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $set: { statut: 'vendu' } });
+          }
+          await vendeursCollection.updateOne(
+            { _id: new ObjectId(jeuData.vendeurId) },
+            { $inc: { soldes: jeu.prix_unitaire * jeu.quantite } }
+          );
+        }
+      }
+
+      // Validate prix_total, frais, and remise
+      if (!prix_total || prix_total <= 0) {
+        return res.status(400).json({ message: 'Un prix total valide est requis.' });
+      }
+
+      if (!frais || frais < 0) {
+        return res.status(400).json({ message: 'Des frais valides sont requis.' });
+      }
+
+      if (remise < 0 || remise > frais) {
+        return res.status(400).json({ message: 'La remise doit être comprise entre 0 et les frais.' });
+      }
+
+      // Update the transaction
+      const updatedTransaction = {
+        proprietaire: proprietaire ? new ObjectId(proprietaire) : null,
+        acheteur: acheteur ? new ObjectId(acheteur) : null,
+        jeux: jeux.map(jeu => ({
+          jeuId: new ObjectId(jeu.jeuId),
+          quantite: jeu.quantite,
+          prix_unitaire: jeu.prix_unitaire,
+        })),
+        prix_total,
+        frais,
+        remise: remise || 0,
+        updatedAt: new Date(),
+      };
+
+      const result = await transactionsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedTransaction }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ message: 'Transaction non trouvée.' });
+      }
+
+      res.status(200).json({ message: 'Transaction mise à jour avec succès.' });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la transaction :', error);
+      res.status(500).json({ message: 'Erreur serveur lors de la mise à jour de la transaction.' });
+    } finally {
+      await client.close();
+    }
+  }
+
+  static async deleteTransaction(req, res) {
+    //on supprime d'abords la transaction
+    try {
+      await client.connect();
+      const db = client.db('awidatabase');
+      const transactionCollection = db.collection('transactions');
+      const transaction = await transactionCollection.findOne({ _id: new ObjectId(req.params.id) });
+      if (!transaction) {
+        return res.status(404).json({ message: 'Transaction non trouvée.' });
+      }
+      await transactionCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+      res.status(200).json({ message: 'Transaction supprimée avec succès.' });
+      //pour chaque jeux on vérifie si le jeu à en statut vendu si oui on le remet en disponible
+      const jeuxCollection = db.collection("jeux");
+      for (const jeu of transaction.jeux) {
+        const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+        if (jeuData.statut === 'vendu') {
+          await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $set: { statut: 'disponible' } });
+        }
+        //on remet ensuite les quantités
+        await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $inc: { quantites: jeu.quantite } });
+
+        if (transaction.statut === 'vente') {
+          //pour chaque jeu vendu on modifie le solde du propriétaire (solde = solde - prix_unitaire * quantite)
+          for (const jeu of transaction.jeux) {
+            const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+            await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.vendeurId) }, { $inc: { soldes: -jeu.prix_unitaire * jeu.quantite } });
+          }
+        } else if (transaction.statut === 'depot') {
+          //On met à jour le solde du propriétaire (soldes = soldes + frais + prix_total)
+          await vendeursCollection.updateOne({ _id: new ObjectId(transaction.proprietaire) }, { $inc: { soldes: transaction.frais + transaction.prix_total } });
+        }
+      }
+
+
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la transaction :', error);
+      res.status(500).json({ message: 'Erreur serveur lors de la suppression de la transaction.' });
     }
   }
 }
