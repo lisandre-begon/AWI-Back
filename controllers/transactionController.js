@@ -2,12 +2,12 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 const uri = "mongodb+srv://lisandrebegon1:czbssegw5de6kicv@awidatabase.1z4go.mongodb.net/?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
+const connectToDatabase = require('../config/database');
 
 class TransactionController {
   static async createTransaction(req, res) {
     try {
-      await client.connect();
-      const db = client.db('awidatabase');
+      const db = await connectToDatabase();
       const gestionnaireCollection = db.collection('gestionnaires');
       const transactionCollection = db.collection('transactions');
       const jeuxCollection = db.collection("jeux");
@@ -172,6 +172,7 @@ class TransactionController {
           acheteur: new ObjectId(acheteur),
           date_transaction: new Date(),
           prix_total,
+          remise: remise || 0,
           frais,
           jeux: jeux.map(jeu => ({
             jeuId: new ObjectId(jeu.jeuId),
@@ -195,65 +196,142 @@ class TransactionController {
     }
   }
 
-  static async getTransactions(req, res) {
-    try {
-      await client.connect();
-      const db = client.db('awidatabase');
-      const transactionCollection = db.collection('transactions');
-      const transactions = await transactionCollection.find().toArray();
-      res.status(200).json(transactions);
-    } catch (error) {
-      console.error('Erreur lors de la récupération des transactions :', error);
-      res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions.' });
-    }
-  }
-
   static async getFilteredTransactions(req, res) {
     try {
-      await client.connect();
-      const db = client.db("awidatabase");
+      const db = await connectToDatabase();
       const transactionCollection = db.collection("transactions");
+      const vendeursCollection = db.collection("vendeurs");
+      const acheteursCollection = db.collection("acheteurs");
+      const gestionnaireCollection = db.collection("gestionnaires");
+      const typeJeuxCollection = db.collection("typeJeux");
+      const categoriesCollection = db.collection("categories");
+      const jeuxCollection = db.collection("jeux");
 
       const {
         statut,
-        vendeurId,
-        acheteurId,
+        proprietaire,
+        acheteur,
         gestionnaire,
         remise,
+        jeuId,
         prixMin,
-        prixMax
+        prixMax,
+        proprietaireJeu,
+        editeur,
+        statutJeu,
+        categorie,
       } = req.query;
 
       const filters = {};
 
       // Apply filters based on query parameters
       if (statut) {
+        if (statut != 'depot' && statut != 'vente') {
+          return res.status(400).json({ message: 'Statut invalide.' });
+        }
         filters.statut = statut;
       }
 
-      if (vendeurId && ObjectId.isValid(vendeurId)) {
-        filters["jeux.vendeurId"] = new ObjectId(vendeurId);
+      if (proprietaire && !ObjectId.isValid(proprietaire)) {
+        return res.status(400).json({ message: 'ID de propriétaire invalide.' });
       }
 
-      if (acheteurId && ObjectId.isValid(acheteurId)) {
-        filters.acheteur = new ObjectId(acheteurId);
+      if (acheteur && !ObjectId.isValid(acheteur)) {
+        return res.status(400).json({ message: 'ID d\'acheteur invalide.' });
       }
 
-      if (gestionnaire && ObjectId.isValid(gestionnaire)) {
+      if (gestionnaire && !ObjectId.isValid(gestionnaire)) {
+        return res.status(400).json({ message: 'ID de gestionnaire invalide.' });
+      }
+
+      if (proprietaire) {
+        const proprietaireExists = await vendeursCollection.findOne({ _id: new ObjectId(proprietaire) });
+        if (!proprietaireExists) {
+          return res.status(404).json({ message: 'Propriétaire non trouvé.' });
+        }
+        filters.proprietaire = new ObjectId(proprietaire);
+      }
+
+      if (acheteur) {
+        const acheteurExists = await acheteursCollection.findOne({ _id: new ObjectId(acheteur) });
+        if (!acheteurExists) {
+          return res.status(404).json({ message: 'Acheteur non trouvé.' });
+        }
+        filters.acheteur = new ObjectId(acheteur);
+      }
+
+      if (gestionnaire) {
+        const gestionnaireExists = await gestionnaireCollection.findOne({ _id: new ObjectId(gestionnaire) });
+        if (!gestionnaireExists) {
+          return res.status(404).json({ message: 'Gestionnaire non trouvé.' });
+        }
         filters.gestionnaire = new ObjectId(gestionnaire);
       }
 
+      if (jeuId && !ObjectId.isValid(jeuId)) {
+        return res.status(400).json({ message: 'ID de jeu invalide.' });
+      }
+
+      if (jeuId) {
+        const jeuExists = await jeuxCollection.findOne({ _id: new ObjectId(jeuId) });
+        if (!jeuExists) {
+          return res.status(404).json({ message: 'Jeu non trouvé.' });
+        }
+        filters.jeux = { $elemMatch: { jeuId: new ObjectId(jeuId) } };
+      }
+
+      //si il y a le parametre remise on le rajoute au filtre pour qu'il prenne ensuite que des transactions avec remise
       if (remise !== undefined) {
         filters.remise = { $gt: 0 };
       }
 
       if (prixMin !== undefined || prixMax !== undefined) {
         filters.prix_total = {};
-        if (prixMin !== undefined) {
-          filters.prix_total.$gte = parseFloat(prixMin);
+        if (prixMin !== undefined) filters.prix_total.$gte = parseFloat(prixMin);
+        if (prixMax !== undefined) filters.prix_total.$lte = parseFloat(prixMax);
+      }
+
+      //Ajout des filtres pour les jeux
+      const jeuFilters = {};
+
+      if (proprietaireJeu && !ObjectId.isValid(proprietaireJeu)) {
+        return res.status(400).json({ message: 'ID de propriétaire du jeu invalide.' });
+      }
+
+      if (proprietaireJeu) {
+        const proprietaireJeuExists = await vendeursCollection.findOne({ _id: new ObjectId(proprietaireJeu) });
+        if (!proprietaireJeuExists) {
+          return res.status(404).json({ message: 'Propriétaire du jeu non trouvé.' });
         }
-        if (prixMax !== undefined) {
-          filters.prix_total.$lte = parseFloat(prixMax);
+        jeuFilters.vendeurId = new ObjectId(proprietaireJeu);
+      }
+
+      if (statutJeu) {
+        if (!['pas disponible', 'disponible', 'vendu'].includes(statutJeu)) {
+          return res.status(400).json({ message: 'Statut du jeu invalide.' });
+        }
+        jeuFilters.statut = statutJeu;
+      }
+
+      //on peut avoir plusieurs catégorie dans le paramètre catégorie
+      if (categorie) {
+        const categoryNames = Array.isArray(categorie) ? categorie : [categorie];
+        const categories = await categoriesCollection.find({ name: { $in: categoryNames } }).toArray();
+        const categoryIds = categories.map(category => category._id);
+  
+        if (categoryIds.length === 0) {
+          return res.status(404).json({ message: `Aucune des catégories spécifiées (${categoryNames.join(", ")}) n'a été trouvée.` });
+        }
+        jeuFilters.categories = { $in: categoryIds };
+      }
+
+      if (editeur) {
+        const typeJeux = await typeJeuxCollection.find({ editeur: editeur }).toArray();
+        const typeJeuIds = typeJeux.map(typeJeu => typeJeu._id);
+        if (typeJeuIds.length > 0) {
+          jeuFilters.typeJeuId = { $in: typeJeuIds };
+        } else {
+          return res.status(404).json({ message: `Aucun jeu trouvé pour l'éditeur '${editeur}'.` });
         }
       }
 
@@ -267,15 +345,12 @@ class TransactionController {
     } catch (error) {
       console.error('Erreur lors de la récupération des transactions filtrées :', error);
       res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions filtrées.' });
-    } finally {
-      await client.close();
     }
   }
 
   static async getTransactions(req, res) {
     try {
-      await client.connect();
-      const db = client.db("awidatabase");
+      const db = await connectToDatabase();
       const transactionCollection = db.collection("transactions");
       const transactions = await transactionCollection.find().toArray();
       res.status(200).json(transactions);
@@ -287,8 +362,7 @@ class TransactionController {
 
   static async getTransactionById(req, res) {
     try {
-      await client.connect();
-      const db = client.db('awidatabase');
+      const db = await connectToDatabase();
       const transactionCollection = db.collection('transactions');
       const transaction = await transactionCollection.findOne({ _id: new ObjectId(req.params.id) });
       if (!transaction) {
@@ -306,8 +380,7 @@ class TransactionController {
     const { proprietaire, acheteur, jeux, prix_total, frais, remise } = req.body;
 
     try {
-      await client.connect();
-      const db = client.db("awidatabase");
+      const db = await connectToDatabase();
       const transactionsCollection = db.collection("transactions");
       const vendeursCollection = db.collection("vendeurs");
       const acheteursCollection = db.collection("acheteurs");
@@ -450,8 +523,7 @@ class TransactionController {
   static async deleteTransaction(req, res) {
     //on supprime d'abords la transaction
     try {
-      await client.connect();
-      const db = client.db('awidatabase');
+      const db = await connectToDatabase();
       const transactionCollection = db.collection('transactions');
       const transaction = await transactionCollection.findOne({ _id: new ObjectId(req.params.id) });
       if (!transaction) {

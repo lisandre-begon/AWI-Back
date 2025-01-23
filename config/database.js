@@ -1,53 +1,39 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+// database.js
+const { MongoClient } = require('mongodb');
 
-// Crédentiels et URI
-const db_username = "lisandrebegon1";
-const db_password = "czbssegw5de6kicv";
-const db_name = "awidatabase";
-const uri = `mongodb+srv://${db_username}:${db_password}@awidatabase.1z4go.mongodb.net/${db_name}?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true`;
-
-// Initialisation des variables
+const uri = "mongodb+srv://lisandrebegon1:czbssegw5de6kicv@awidatabase.1z4go.mongodb.net/?retryWrites=true&w=majority";
 let client;
-let db;
+let dbInstance;
 
-// Fonction pour se connecter à MongoDB
-const connectDB = async () => {
-  try {
-    // Créer un client MongoDB avec les options nécessaires
-    client = new MongoClient(uri, {
-      serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-      },
-    });
-
-    // Connexion au cluster
-    await client.connect();
-    console.log("Connexion à MongoDB réussie !");
-
-    // Vérifier la connexion
-    await client.db("admin").command({ ping: 1 });
-
-    // Initialiser la base de données
-    db = client.db(db_name);
-    console.log(`Base de données sélectionnée : ${db_name}`);
-  } catch (error) {
-    console.error("Erreur de connexion à MongoDB :", error);
-    if (client) {
-      await client.close();
+const connectToDatabase = async () => {
+  if (!dbInstance) {
+    try {
+      client = new MongoClient(uri);
+      await client.connect();
+      console.log("Connexion réussie à MongoDB !");
+      dbInstance = client.db("awidatabase");
+    } catch (error) {
+      console.error("Erreur lors de la connexion à MongoDB :", error);
+      if (client) await client.close();
+      throw error;
     }
-    process.exit(1); // Arrêter le processus si la connexion échoue
   }
+  return dbInstance;
 };
 
-// Fonction pour obtenir la base de données
 const getDB = () => {
-  if (!db) {
-    throw new Error("La connexion à la base de données n'est pas encore initialisée.");
+  if (!dbInstance) {
+    throw new Error("La base de données n'est pas encore connectée.");
   }
-  return db;
+  return dbInstance;
 };
 
-// Exporter les fonctions pour les utiliser ailleurs
-module.exports = { connectDB, getDB };
+process.on('SIGINT', async () => {
+  if (client) {
+    await client.close();
+    console.log("Connexion à MongoDB fermée.");
+    process.exit(0);
+  }
+});
+
+module.exports = connectToDatabase;
