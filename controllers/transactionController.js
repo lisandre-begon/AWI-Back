@@ -218,8 +218,8 @@ class TransactionController {
         prixMax,
         proprietaireJeu,
         editeur,
-        statutJeu,
         categorie,
+        nameJeu,
       } = req.query;
 
       const filters = {};
@@ -306,13 +306,6 @@ class TransactionController {
         jeuFilters.vendeurId = new ObjectId(proprietaireJeu);
       }
 
-      if (statutJeu) {
-        if (!['pas disponible', 'disponible', 'vendu'].includes(statutJeu)) {
-          return res.status(400).json({ message: 'Statut du jeu invalide.' });
-        }
-        jeuFilters.statut = statutJeu;
-      }
-
       //on peut avoir plusieurs catégorie dans le paramètre catégorie
       if (categorie) {
         const categoryNames = Array.isArray(categorie) ? categorie : [categorie];
@@ -332,6 +325,16 @@ class TransactionController {
           jeuFilters.typeJeuId = { $in: typeJeuIds };
         } else {
           return res.status(404).json({ message: `Aucun jeu trouvé pour l'éditeur '${editeur}'.` });
+        }
+      }
+      
+      if (nameJeu) {
+        const typeJeux = await typeJeuxCollection.find({ intitule: nameJeu }).toArray();
+        const typeJeuIds = typeJeux.map(typeJeu => typeJeu._id);
+        if (typeJeuIds.length > 0) {
+          jeuFilters.typeJeuId = { $in: typeJeuIds };
+        } else {
+          return res.status(404).json({ message: `Aucun jeu trouvé du nom de '${nameJeu}'.` });
         }
       }
 

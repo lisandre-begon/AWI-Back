@@ -2,6 +2,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 const uri = "mongodb+srv://lisandrebegon1:czbssegw5de6kicv@awidatabase.1z4go.mongodb.net/?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
+const connectToDatabase = require('../config/database');
 
 class JeuController {
     static async createJeu(req, res) {
@@ -79,10 +80,9 @@ class JeuController {
     }
 
     static async getJeuById(req, res) {
-        const id = req.params.id;
         try {
-            await client.connect();
-            const db = client.db("awidatabase");
+            const id = req.params.id;
+            const db = await connectToDatabase();
             const jeuxCollection = db.collection("jeux");
             const typeJeuxCollection = db.collection("typeJeux");
             const vendeursCollection = db.collection("vendeurs");
@@ -141,10 +141,9 @@ class JeuController {
     }
     
     static async getJeuxByVendeur(req, res) {
-        const vendeurId = req.params.vendeurId;
         try {
-            await client.connect();
-            const db = client.db("awidatabase");
+            const vendeurId = req.params.vendeurId;
+            const db = await connectToDatabase();
             const jeuxCollection = db.collection("jeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
@@ -201,30 +200,74 @@ class JeuController {
         }
     }
     
-
-    static async getAllJeux(req, res) {
+    static async getFilteredJeux(req, res) {
         try {
-            await client.connect();
-            const db = client.db("awidatabase");
-    
+            const db = await connectToDatabase();
             const jeuxCollection = db.collection("jeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
             const typeJeuxCollection = db.collection("typeJeux");
-    
-            const jeux = await jeuxCollection.find().toArray();
-    
+
+            const {
+                proprietaire,
+                prix_min,
+                prix_max,
+                categorie,
+                nameJeu,
+            } = req.query;
+
+            const filters = {};
+
+            // Filter by proprietaire (owner)
+            if (proprietaire) {
+                if (!ObjectId.isValid(proprietaire)) {
+                    return res.status(400).json({ message: 'ID de propriétaire invalide.' });
+                }
+                filters.vendeurId = new ObjectId(proprietaire);
+            }
+
+            // Filter by price range
+            if (prix_min !== undefined || prix_max !== undefined) {
+                filters.prix = {};
+                if (prix_min !== undefined) filters.prix.$gte = parseFloat(prix_min);
+                if (prix_max !== undefined) filters.prix.$lte = parseFloat(prix_max);
+            }
+
+            // Filter by categorie
+            if (categorie) {
+                if (!ObjectId.isValid(categorie)) {
+                    return res.status(400).json({ message: 'ID de catégorie invalide.' });
+                }
+                filters.categories = new ObjectId(categorie);
+            }
+
+            // Filter by nameJeu
+            if (nameJeu) {
+                filters.intitule = { $regex: new RegExp(nameJeu, 'i') }; // Case-insensitive regex search
+            }
+
+            // If no filters are applied, call getAllJeux
+            if (Object.keys(filters).length === 0) {
+                return JeuController.getAllJeux(req, res);
+            }
+
+            const jeux = await jeuxCollection.find(filters).toArray();
+
+            if (jeux.length === 0) {
+                return res.status(404).json({ message: 'Aucun jeu ne correspond aux filtres fournis.' });
+            }
+
             const vendeurs = await vendeursCollection.find().toArray();
             const categories = await categoriesCollection.find().toArray();
             const typeJeux = await typeJeuxCollection.find().toArray();
-    
+
             const vendeursMap = vendeurs.reduce((map, vendeur) => {
                 map[vendeur._id.toString()] = vendeur.nom;
                 return map;
             }, {});
-    
-            const categoriesMap = categories.reduce((map, category) => {
-                map[category._id.toString()] = category.name; // Map category ID to name
+
+            const categoriesMap = categories.reduce((map, categorie) => {
+                map[categorie._id.toString()] = categorie.nom;
                 return map;
             }, {});
 
@@ -232,7 +275,7 @@ class JeuController {
                 map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
                 return map;
             }, {});
-    
+
             // Map over games to replace IDs with names
             const jeuxWithDetails = jeux.map(jeu => ({
                 etiquette: jeu._id,
@@ -245,25 +288,74 @@ class JeuController {
                 categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
                 dateDepot: jeu.createdAt
             }));
-    
+
             res.status(200).json(jeuxWithDetails);
         } catch (error) {
-            console.error('Erreur lors de la récupération des jeux:', error);
-            res.status(500).json({ message: 'Erreur lors de la récupération des jeux.' });
+            console.error('Erreur lors de la récupération des jeux filtrés:', error);
+            res.status(500).json({ message: 'Erreur serveur lors de la récupération des jeux filtrés.' });
         } finally {
             await client.close();
         }
     }
-    
-    static async updateJeu(req, res) {
-        const id = req.params.id;
+
+    static async getAllJeux(req, res) {
         try {
-            await client.connect();
-            const db = client.db("awidatabase");
+            const db = await connectToDatabase();
             const jeuxCollection = db.collection("jeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
             const typeJeuxCollection = db.collection("typeJeux");
+
+            const jeux = await jeuxCollection.find().toArray();
+            const vendeurs = await vendeursCollection.find().toArray();
+            const categories = await categoriesCollection.find().toArray();
+            const typeJeux = await typeJeuxCollection.find().toArray();
+
+            const vendeursMap = vendeurs.reduce((map, vendeur) => {
+                map[vendeur._id.toString()] = vendeur.nom;
+                return map;
+            }, {});
+
+            const categoriesMap = categories.reduce((map, categorie) => {
+                map[categorie._id.toString()] = categorie.nom;
+                return map;
+            }, {});
+
+            const typeJeuxMap = typeJeux.reduce((map, typeJeu) => {
+                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
+                return map;
+            }, {});
+
+            // Map over games to replace IDs with names
+            const jeuxWithDetails = jeux.map(jeu => ({
+                etiquette: jeu._id,
+                vendeur: vendeursMap[jeu.vendeurId?.toString()], // Get vendeur name from map
+                intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
+                editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
+                statut: jeu.statut,
+                prix: jeu.prix,
+                quantites: jeu.quantites,
+                categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
+                dateDepot: jeu.createdAt
+            }));
+
+            res.status(200).json(jeuxWithDetails);
+        } catch (error) {
+            console.error('Erreur lors de la récupération des jeux:', error);
+            res.status(500).json({ message: 'Erreur serveur lors de la récupération des jeux.' });
+        } finally {
+            await client.close();
+        }
+    }
+
+    static async updateJeu(req, res) {
+        try {
+            const db = await connectToDatabase();
+            const jeuxCollection = db.collection("jeux");
+            const vendeursCollection = db.collection("vendeurs");
+            const categoriesCollection = db.collection("categories");
+            const typeJeuxCollection = db.collection("typeJeux");
+            const id = req.params.id;
     
             if (!ObjectId.isValid(id)) {
                 return res.status(404).json({ message: 'Jeu non trouvé.' });
@@ -328,10 +420,9 @@ class JeuController {
     }
         
     static async deleteJeu(req, res) {
-        const id = req.params.id;
         try {
-            await client.connect();
-            const db = client.db("awidatabase");
+            const db = await connectToDatabase();
+            const id = req.params.id;
             const jeuxCollection = db.collection("jeux");
     
             if (!ObjectId.isValid(id)) {
