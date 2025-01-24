@@ -213,8 +213,11 @@ class JeuController {
                 prix_min,
                 prix_max,
                 categorie,
-                nameJeu,
-            } = req.query;
+                intitule,
+                statut,
+                editeur,
+                quantites
+            } = req.body;
 
             const filters = {};
 
@@ -229,8 +232,18 @@ class JeuController {
             // Filter by price range
             if (prix_min !== undefined || prix_max !== undefined) {
                 filters.prix = {};
-                if (prix_min !== undefined) filters.prix.$gte = parseFloat(prix_min);
-                if (prix_max !== undefined) filters.prix.$lte = parseFloat(prix_max);
+                if (prix_min !== undefined) {
+                    if (prix_min < 0) {
+                        return res.status(400).json({message: "Prix minimal non valide"});
+                    }
+                    filters.prix.$gte = parseFloat(prix_min);
+                }
+                if (prix_max !== undefined) {
+                    if (prix_max < 0) {
+                        return res.status(400).json({message: "Prix maximal non valide"});
+                    }
+                    filters.prix.$lte = parseFloat(prix_max);
+                }
             }
 
             // Filter by categorie
@@ -242,8 +255,39 @@ class JeuController {
             }
 
             // Filter by nameJeu
-            if (nameJeu) {
-                filters.intitule = { $regex: new RegExp(nameJeu, 'i') }; // Case-insensitive regex search
+            if (intitule) {
+                const typeJeux = await typeJeuxCollection.find({ intitule: intitule}).toArray();
+                const typeJeuIds = typeJeux.map(typeJeu => typeJeu._id);
+                if (typeJeuIds.length > 0) {
+                        filters.typeJeuId = { $in: typeJeuIds}
+                } else {
+                    return res.status(404).json({message: 'Aucun jeu de ce nom'})
+                }
+            }
+
+            if (editeur) {
+                const typeJeux = await typeJeuxCollection.find({ editeur: editeur }).toArray();
+                const typeJeuIds = typeJeux.map(typeJeu => typeJeu._id);
+                if (typeJeuIds.length > 0) {
+                  filters.typeJeuId = { $in: typeJeuIds };
+                } else {
+                  return res.status(404).json({ message: `Aucun jeu trouvé pour l'éditeur '${editeur}'.` });
+                }
+            }
+
+            if (quantites) {
+                filters.quantites = {}
+                if (quantites < 0 ) {
+                    return res.status(400).json({message: "Quantite invalide"});
+                }
+                filters.quantites.$gte = parseFloat(quantites);
+            }
+
+            if (statut) {
+                if (statut != "pas disponible" && statut != "disponible" && statut != "vendu") {
+                    return res.status(400).json({message: "Le statut est invalide"});
+                }
+                filters.statut = statut;
             }
 
             // If no filters are applied, call getAllJeux
@@ -267,7 +311,7 @@ class JeuController {
             }, {});
 
             const categoriesMap = categories.reduce((map, categorie) => {
-                map[categorie._id.toString()] = categorie.nom;
+                map[categorie._id.toString()] = categorie.name;
                 return map;
             }, {});
 
@@ -317,7 +361,7 @@ class JeuController {
             }, {});
 
             const categoriesMap = categories.reduce((map, categorie) => {
-                map[categorie._id.toString()] = categorie.nom;
+                map[categorie._id.toString()] = categorie.name;
                 return map;
             }, {});
 
