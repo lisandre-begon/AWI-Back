@@ -14,21 +14,21 @@ class JeuController {
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
 
-            const { vendeurId, typeJeuId, prix, categories, quantites, statut } = req.body;
+            const { proprietaire, typeJeuId, prix, categories, quantites, statut } = req.body;
 
-            if (!vendeurId) return res.status(400).json({ message: 'L\'ID du vendeur est requis.' });
+            if (!proprietaire) return res.status(400).json({ message: 'L\'ID du vendeur est requis.' });
             if (!prix || prix <= 0) return res.status(400).json({ message: 'Un prix valide est requis.' });
             if (!categories || categories.length === 0) {
                 return res.status(400).json({ message: 'Au moins une catégorie est requise.' });
             }
             if (!typeJeuId) return res.status(400).json({ message: 'L\'ID du type de jeu est requis.' });
-            if (statut && !['pas disponible', 'disponible', 'vendu'].includes(statut)) {
+            if (statut && !['pas disponible', 'disponible'].includes(statut)) {
                 return res.status(400).json({ message: 'Statut invalide.' });
             }
             if (quantites <= 0) return res.status(400).json({ message: 'Une quantité valide est requise.' });
 
             // Validation du vendeur
-            const vendeurExists = await vendeursCollection.findOne({ _id: new ObjectId(vendeurId) });
+            const vendeurExists = await vendeursCollection.findOne({ _id: new ObjectId(proprietaire) });
             if (!vendeurExists) {
                 return res.status(404).json({ message: 'Le vendeur spécifié n\'existe pas.' });
             }
@@ -51,9 +51,9 @@ class JeuController {
             }
 
             //Cas où le jeu est déjà en vente par le même vendeur
-            const jeuEnVente = await jeuxCollection.findOne({ vendeurId: new ObjectId(vendeurId), typeJeuId: new ObjectId(typeJeuId) });
+            const jeuEnVente = await jeuxCollection.findOne({ proprietaire: new ObjectId(proprietaire), typeJeuId: new ObjectId(typeJeuId) });
             const newJeu = {
-                vendeurId: new ObjectId(vendeurId),
+                proprietaire: new ObjectId(proprietaire),
                 typeJeuId: new ObjectId(typeJeuId),
                 statut: statut || 'disponible',
                 prix: parseFloat(prix),
@@ -122,13 +122,13 @@ class JeuController {
     
             const jeuWithDetails = {
                 etiquette: jeu._id,
-                vendeur: vendeursMap[jeu.vendeurId?.toString()], // Map vendeur ID to name
+                vendeur: vendeursMap[jeu.proprietaire?.toString()], // Map vendeur ID to name
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
                 editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
                 prix: jeu.prix,
                 statut: jeu.statut,
                 categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
-                createdAt: jeu.createdAt,
+                dateDepot: jeu.createdAt,
             };
     
             res.status(200).json(jeuWithDetails);
@@ -142,18 +142,18 @@ class JeuController {
     
     static async getJeuxByVendeur(req, res) {
         try {
-            const vendeurId = req.params.vendeurId;
+            const proprietaire = req.params.proprietaire;
             const db = await connectToDatabase();
             const jeuxCollection = db.collection("jeux");
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
             const typeJeuxCollection = db.collection("typeJeux");
     
-            if (!ObjectId.isValid(vendeurId)) {
+            if (!ObjectId.isValid(proprietaire)) {
                 return res.status(404).json({ message: 'Vendeur non trouvé.' });
             }
     
-            const jeux = await jeuxCollection.find({ vendeurId: new ObjectId(vendeurId) }).toArray();
+            const jeux = await jeuxCollection.find({ proprietaire: new ObjectId(proprietaire) }).toArray();
     
             if (jeux.length === 0) {
                 return res.status(404).json({ message: 'Aucun jeu trouvé pour ce vendeur.' });
@@ -181,7 +181,7 @@ class JeuController {
     
             const jeuxWithDetails = jeux.map(jeu => ({
                 etiquette: jeu._id,
-                vendeur: vendeursMap[jeu.vendeurId?.toString()], // Map vendeur ID to name
+                vendeur: vendeursMap[jeu.proprietaire?.toString()], // Map vendeur ID to name
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
                 editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
                 statut: jeu.statut,
@@ -193,7 +193,7 @@ class JeuController {
     
             res.status(200).json(jeuxWithDetails);
         } catch (error) {
-            console.error(`Erreur lors de la récupération des jeux pour le vendeur avec l'ID ${vendeurId}:`, error);
+            console.error(`Erreur lors de la récupération des jeux pour le vendeur avec l'ID ${proprietaire}:`, error);
             res.status(500).json({ message: 'Erreur lors de la récupération des jeux du vendeur.' });
         } finally {
             await client.close();
@@ -226,7 +226,7 @@ class JeuController {
                 if (!ObjectId.isValid(proprietaire)) {
                     return res.status(400).json({ message: 'ID de propriétaire invalide.' });
                 }
-                filters.vendeurId = new ObjectId(proprietaire);
+                filters.proprietaire = new ObjectId(proprietaire);
             }
 
             // Filter by price range
@@ -323,7 +323,7 @@ class JeuController {
             // Map over games to replace IDs with names
             const jeuxWithDetails = jeux.map(jeu => ({
                 etiquette: jeu._id,
-                vendeur: vendeursMap[jeu.vendeurId?.toString()], // Get vendeur name from map
+                vendeur: vendeursMap[jeu.proprietaire?.toString()], // Get vendeur name from map
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
                 editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
                 statut: jeu.statut,
@@ -373,7 +373,7 @@ class JeuController {
             // Map over games to replace IDs with names
             const jeuxWithDetails = jeux.map(jeu => ({
                 etiquette: jeu._id,
-                vendeur: vendeursMap[jeu.vendeurId?.toString()], // Get vendeur name from map
+                vendeur: vendeursMap[jeu.proprietaire?.toString()], // Get vendeur name from map
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
                 editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
                 statut: jeu.statut,
@@ -405,11 +405,15 @@ class JeuController {
                 return res.status(404).json({ message: 'Jeu non trouvé.' });
             }
     
-            const { vendeurId, categories, dateVente, statut, prix, quantites, typeJeuId } = req.body;
+            if (!req.body) {
+                return res.status(400).json({ message: 'Les champs à mettre à jour sont requis.' });
+            }
+            
+            const { proprietaire, categories, dateVente, statut, prix, quantites, typeJeuId } = req.body;
     
             // Validation of vendeur
-            if (vendeurId) {
-                const vendeurExists = await vendeursCollection.findOne({ _id: new ObjectId(vendeurId) });
+            if (proprietaire) {
+                const vendeurExists = await vendeursCollection.findOne({ _id: new ObjectId(proprietaire) });
                 if (!vendeurExists) {
                     return res.status(404).json({ message: 'Le vendeur spécifié n\'existe pas.' });
                 }
@@ -436,9 +440,11 @@ class JeuController {
                     });
                 }
             }
+
+
     
             const updateFields = {
-                ...(vendeurId && { vendeurId: new ObjectId(vendeurId) }),
+                ...(proprietaire && { proprietaire: new ObjectId(proprietaire) }),
                 ...(typeJeuId && { typeJeuId: new ObjectId(typeJeuId) }),
                 ...(categories && { categories: categories.map(id => new ObjectId(id)) }),
                 ...(dateVente && { dateVente: new Date(dateVente) }),

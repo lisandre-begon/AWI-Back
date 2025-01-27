@@ -47,7 +47,7 @@ class CategorieController {
         }
     }
 
-    static async getAllCategories(res) {
+    static async getAllCategories(req, res) {
         try {
             // Connect to MongoDB
             await client.connect();

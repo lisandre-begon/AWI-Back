@@ -105,6 +105,12 @@ class VendeurController {
                     return res.status(400).json({ message: "Email non valide." });
                 }
                 updatedFields.email = req.body.email;
+                email = req.body.email;
+                const existingVendeur = await vendeursCollection.findOne({ email });
+                if (existingVendeur) {
+                return res.status(400).json({ message: 'Email déjà utilisé.' });
+            }
+
             }
             if (req.body.telephone !== undefined) updatedFields.telephone = req.body.telephone;
             if (req.body.soldes !== undefined) updatedFields.soldes = req.body.soldes;

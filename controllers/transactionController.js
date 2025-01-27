@@ -220,7 +220,7 @@ class TransactionController {
         editeur,
         categorie,
         nameJeu,
-      } = req.query;
+      } = req.body;
 
       const filters = {};
 
@@ -344,39 +344,275 @@ class TransactionController {
       }
 
       const transactions = await transactionCollection.find(filters).toArray();
-      res.status(200).json(transactions);
-    } catch (error) {
-      console.error('Erreur lors de la récupération des transactions filtrées :', error);
-      res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions filtrées.' });
-    }
-  }
+      // Fetch related collections
+        const gestionnaires = await gestionnaireCollection.find().toArray();
+        const vendeurs = await vendeursCollection.find().toArray();
+        const acheteurs = await acheteursCollection.find().toArray();
+        const categories = await categoriesCollection.find().toArray();
 
-  static async getTransactions(req, res) {
-    try {
+        // Create maps for efficient lookups
+        const gestionnairesMap = gestionnaires.reduce((map, g) => {
+            map[g._id.toString()] = g.pseudo;
+            return map;
+        }, {});
+        const vendeursMap = vendeurs.reduce((map, v) => {
+            map[v._id.toString()] = v.nom;
+            return map;
+        }, {});
+        const acheteursMap = acheteurs.reduce((map, a) => {
+            map[a._id.toString()] = a.nom;
+            return map;
+        }, {});
+
+        const categoriesMap = categories.reduce((map, categorie) => {
+          map[categorie._id.toString()] = categorie.name;
+          return map;
+      }, {});
+
+        // Build the detailed transactions
+        const transactionsWithDetails = [];
+        for (const transaction of transactions) {
+            const jeuxDetails = [];
+            for (const jeu of transaction.jeux) {
+                // Find the jeu in the "jeux" collection
+                const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+                if (!jeuData) continue;
+
+                // Find the typeJeu associated with the jeu
+                const typeJeu = await typeJeuxCollection.findOne({ _id: new ObjectId(jeuData.typeJeuId) });
+                const proprietaire = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.vendeurId) });
+                // Map category IDs to names using the categoriesMap
+                const categoryNames = (jeuData.categories || []).map(
+                  catId => categoriesMap[catId.toString()] || "Inconnu"
+              );
+
+                // Add detailed jeu information
+                jeuxDetails.push({
+                    jeuId: jeu.jeuId,
+                    intitule: typeJeu?.intitule || "Inconnu",
+                    editeur: typeJeu?.editeur || "Inconnu",
+                    quantite: jeu.quantite,
+                    prix_unitaire: jeu.prix_unitaire,
+                    vendeur: proprietaire.nom, // Add proprietaire ID from jeuData
+                    categories: categoryNames,
+                });
+            }
+
+            // Dynamically build the transaction object
+            const transactionDetails = {
+                id: transaction._id,
+                statut: transaction.statut,
+                gestionnaire: gestionnairesMap[transaction.gestionnaire?.toString()],
+                date_transaction: transaction.date_transaction,
+                prix_total: transaction.prix_total,
+                frais: transaction.frais,
+                remise: transaction.remise,
+            };
+
+            // Conditionally add proprietaire or acheteur if they exist
+            if (transaction.proprietaire) {
+                transactionDetails.proprietaire = vendeursMap[transaction.proprietaire.toString()];
+            }
+            if (transaction.acheteur) {
+                transactionDetails.acheteur = acheteursMap[transaction.acheteur.toString()];
+            }
+
+            transactionDetails.jeux = jeuxDetails;
+            transactionsWithDetails.push(transactionDetails);
+        }
+
+        res.status(200).json(transactionsWithDetails);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des transactions filtrées :', error);
+    res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions filtrées.' });
+  }
+}
+
+static async getTransactions(req, res) {
+  try {
       const db = await connectToDatabase();
       const transactionCollection = db.collection("transactions");
+      const gestionnaireCollection = db.collection("gestionnaires");
+      const vendeursCollection = db.collection("vendeurs");
+      const acheteursCollection = db.collection("acheteurs");
+      const typeJeuxCollection = db.collection("typeJeux");
+      const categoriesCollection = db.collection("categories");
+      const jeuxCollection = db.collection("jeux");
+
       const transactions = await transactionCollection.find().toArray();
-      res.status(200).json(transactions);
-    } catch (error) {
+
+      // Fetch related collections
+      const gestionnaires = await gestionnaireCollection.find().toArray();
+      const vendeurs = await vendeursCollection.find().toArray();
+      const acheteurs = await acheteursCollection.find().toArray();
+      const categories = await categoriesCollection.find().toArray();
+
+      // Create maps for efficient lookups
+      const gestionnairesMap = gestionnaires.reduce((map, g) => {
+          map[g._id.toString()] = g.pseudo;
+          return map;
+      }, {});
+      const vendeursMap = vendeurs.reduce((map, v) => {
+          map[v._id.toString()] = v.nom;
+          return map;
+      }, {});
+      const acheteursMap = acheteurs.reduce((map, a) => {
+          map[a._id.toString()] = a.nom;
+          return map;
+      }, {});
+      const categoriesMap = categories.reduce((map, categorie) => {
+          map[categorie._id.toString()] = categorie.name;
+          return map;
+      }, {});
+
+      // Build the detailed transactions
+      const transactionsWithDetails = [];
+      for (const transaction of transactions) {
+          const jeuxDetails = [];
+          for (const jeu of transaction.jeux) {
+              // Find the jeu in the "jeux" collection
+              const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+              if (!jeuData) continue;
+
+              // Find the typeJeu associated with the jeu
+              const typeJeu = await typeJeuxCollection.findOne({ _id: new ObjectId(jeuData.typeJeuId) });
+              const proprietaire = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.vendeurId) });
+
+              // Map category IDs to names using the categoriesMap
+              const categoryNames = (jeuData.categories || []).map(
+                  catId => categoriesMap[catId.toString()] || "Inconnu"
+              );
+
+              // Add detailed jeu information
+              jeuxDetails.push({
+                  jeuId: jeu.jeuId,
+                  intitule: typeJeu?.intitule || "Inconnu",
+                  editeur: typeJeu?.editeur || "Inconnu",
+                  quantite: jeu.quantite,
+                  prix_unitaire: jeu.prix_unitaire,
+                  vendeur: proprietaire?.nom || "Inconnu",
+                  categories: categoryNames,
+              });
+          }
+
+          // Dynamically build the transaction object
+          const transactionDetails = {
+              id: transaction._id,
+              statut: transaction.statut,
+              gestionnaire: gestionnairesMap[transaction.gestionnaire?.toString()],
+              date_transaction: transaction.date_transaction,
+              prix_total: transaction.prix_total,
+              frais: transaction.frais,
+              remise: transaction.remise,
+          };
+
+          // Conditionally add proprietaire or acheteur if they exist
+          if (transaction.proprietaire) {
+              transactionDetails.proprietaire = vendeursMap[transaction.proprietaire.toString()];
+          }
+          if (transaction.acheteur) {
+              transactionDetails.acheteur = acheteursMap[transaction.acheteur.toString()];
+          }
+
+          transactionDetails.jeux = jeuxDetails;
+          transactionsWithDetails.push(transactionDetails);
+      }
+
+      res.status(200).json(transactionsWithDetails);
+  } catch (error) {
       console.error('Erreur lors de la récupération des transactions :', error);
       res.status(500).json({ message: 'Erreur serveur lors de la récupération des transactions.' });
-    }
   }
+}
 
   static async getTransactionById(req, res) {
     try {
-      const db = await connectToDatabase();
-      const transactionCollection = db.collection('transactions');
-      const transaction = await transactionCollection.findOne({ _id: new ObjectId(req.params.id) });
-      if (!transaction) {
-        return res.status(404).json({ message: 'Transaction non trouvée.' });
-      }
-      res.status(200).json(transaction);
+        const db = await connectToDatabase();
+        const transactionCollection = db.collection('transactions');
+        const gestionnaireCollection = db.collection('gestionnaires');
+        const vendeursCollection = db.collection('vendeurs');
+        const acheteursCollection = db.collection('acheteurs');
+        const typeJeuxCollection = db.collection('typeJeux');
+        const categoriesCollection = db.collection('categories');
+        const jeuxCollection = db.collection('jeux');
+
+        const transaction = await transactionCollection.findOne({ _id: new ObjectId(req.params.id) });
+
+        if (!transaction) {
+            return res.status(404).json({ message: 'Transaction non trouvée.' });
+        }
+
+        // Fetch related collections
+        const gestionnaire = transaction.gestionnaire
+            ? await gestionnaireCollection.findOne({ _id: new ObjectId(transaction.gestionnaire) })
+            : null;
+
+        const proprietaire = transaction.proprietaire
+            ? await vendeursCollection.findOne({ _id: new ObjectId(transaction.proprietaire) })
+            : null;
+
+        const acheteur = transaction.acheteur
+            ? await acheteursCollection.findOne({ _id: new ObjectId(transaction.acheteur) })
+            : null;
+
+        const categories = await categoriesCollection.find().toArray();
+        const categoriesMap = categories.reduce((map, categorie) => {
+            map[categorie._id.toString()] = categorie.name;
+            return map;
+        }, {});
+
+        const jeuxDetails = [];
+        for (const jeu of transaction.jeux) {
+            const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
+            if (!jeuData) continue;
+
+            const typeJeu = await typeJeuxCollection.findOne({ _id: new ObjectId(jeuData.typeJeuId) });
+            const vendeur = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.vendeurId) });
+
+            // Map category IDs to names using the categoriesMap
+            const categoryNames = (jeuData.categories || []).map(
+                catId => categoriesMap[catId.toString()] || "Inconnu"
+            );
+
+            jeuxDetails.push({
+                jeuId: jeu.jeuId,
+                intitule: typeJeu?.intitule || "Inconnu",
+                editeur: typeJeu?.editeur || "Inconnu",
+                quantite: jeu.quantite,
+                prix_unitaire: jeu.prix_unitaire,
+                vendeur: vendeur?.nom || "Inconnu",
+                categories: categoryNames,
+            });
+        }
+
+        // Build the detailed transaction
+        const transactionDetails = {
+            id: transaction._id,
+            statut: transaction.statut,
+            gestionnaire: gestionnaire?.pseudo || "Inconnu",
+            date_transaction: transaction.date_transaction,
+            prix_total: transaction.prix_total,
+            frais: transaction.frais,
+            remise: transaction.remise,
+        };
+
+        // Conditionally add proprietaire or acheteur if they exist
+        if (proprietaire) {
+            transactionDetails.proprietaire = proprietaire.nom;
+        }
+        if (acheteur) {
+            transactionDetails.acheteur = acheteur.nom;
+        }
+
+        transactionDetails.jeux = jeuxDetails;
+
+        res.status(200).json(transactionDetails);
     } catch (error) {
-      console.error('Erreur lors de la récupération de la transaction :', error);
-      res.status(500).json({ message: 'Erreur serveur lors de la récupération de la transaction.' });
+        console.error('Erreur lors de la récupération de la transaction :', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la récupération de la transaction.' });
     }
-  }
+}
+
 
   static async updateTransaction(req, res) {
     const id = req.params.id;
