@@ -33,6 +33,7 @@ class VendeurController {
                 email,
                 telephone,
                 soldes: solde,
+                createdAt: new Date(),
             };
 
             await vendeursCollection.insertOne(newVendeur);
@@ -56,7 +57,7 @@ class VendeurController {
                 return res.status(404).json({ message: 'Vendeur non valide.' });
             }
 
-            const vendeur = await vendeursCollection.findOne({ _id: new ObjectId(id) }, { projection: {updatedAt: 0} });
+            const vendeur = await vendeursCollection.findOne({ _id: new ObjectId(id) }, { projection: { updatedAt: 0, createdAt: 0 } });
             if (!vendeur) {
                 return res.status(404).json({ message: 'Vendeur non trouvé.' });
             }
@@ -75,7 +76,7 @@ class VendeurController {
             const db = await connectToDatabase();
             const vendeursCollection = db.collection("vendeurs");
 
-            const vendeurs = await vendeursCollection.find({}, { projection: {updatedAt: 0} }).toArray();
+            const vendeurs = await vendeursCollection.find({}, { projection: { updatedAt: 0, createdAt: 0 } }).toArray();
 
             res.status(200).json(vendeurs);
         } catch (error) {
@@ -105,7 +106,7 @@ class VendeurController {
                     return res.status(400).json({ message: "Email non valide." });
                 }
                 updatedFields.email = req.body.email;
-                email = req.body.email;
+                const email = req.body.email;
                 const existingVendeur = await vendeursCollection.findOne({ email });
                 if (existingVendeur) {
                 return res.status(400).json({ message: 'Email déjà utilisé.' });
@@ -118,6 +119,7 @@ class VendeurController {
             if (Object.keys(updatedFields).length === 0) {
                 return res.status(400).json({ message: "Aucun champ valide à mettre à jour." });
             }
+
     
             updatedFields.updatedAt = new Date();
     
