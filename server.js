@@ -4,8 +4,7 @@ const connectToDatabase = require('./config/database');
 const { exec } = require('child_process');
 
 const app = express();
-const defaultPort = 5000;
-const fallbackPort = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 app.use(cors());
@@ -39,8 +38,8 @@ app.use(cors());
     app.use('/api/session', sessionRoutes);
 
     // Start server
-    exec(`lsof -i:${defaultPort}`, (err, stdout, stderr) => {
-      const port = (stdout || stderr) ? fallbackPort : defaultPort;
+    exec(`lsof -i:${PORT}`, (err, stdout, stderr) => {
+      const port = (stdout || stderr) ? fallbackPort : PORT;
       app.listen(port, () => {
         console.log(`Server is running on http://localhost:${port}`);
       });
