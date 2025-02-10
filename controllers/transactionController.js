@@ -344,6 +344,10 @@ class TransactionController {
       }
 
       const transactions = await transactionCollection.find(filters).toArray();
+      const filteredTransactions = transactions.filter(transaction => 
+        new Date(transaction.date_transaction) >= new Date(activeSession.dateDebut) &&
+        new Date(transaction.date_transaction) <= new Date(activeSession.dateFin)
+    );
       // Fetch related collections
         const gestionnaires = await gestionnaireCollection.find().toArray();
         const vendeurs = await vendeursCollection.find().toArray();
@@ -371,7 +375,7 @@ class TransactionController {
 
         // Build the detailed transactions
         const transactionsWithDetails = [];
-        for (const transaction of transactions) {
+        for (const transaction of filteredTransactions) {
             const jeuxDetails = [];
             for (const jeu of transaction.jeux) {
                 // Find the jeu in the "jeux" collection
@@ -438,9 +442,10 @@ static async getTransactions(req, res) {
       const typeJeuxCollection = db.collection("typeJeux");
       const categoriesCollection = db.collection("categories");
       const jeuxCollection = db.collection("jeux");
+      const sessionCollection = db.collection("session");
 
       const transactions = await transactionCollection.find().toArray();
-
+      const activeSession = await sessionCollection.findOne({ statutSession: "En cours" });
       // Fetch related collections
       const gestionnaires = await gestionnaireCollection.find().toArray();
       const vendeurs = await vendeursCollection.find().toArray();
@@ -465,9 +470,19 @@ static async getTransactions(req, res) {
           return map;
       }, {});
 
+      if (!activeSession) {
+        return res.status(400).json({ message: "Aucune session active en cours." });
+      }
+    
+      // Filter transactions within the active session's date range
+      const filteredTransactions = transactions.filter(transaction => 
+        new Date(transaction.date_transaction) >= new Date(activeSession.dateDebut) &&
+        new Date(transaction.date_transaction) <= new Date(activeSession.dateFin)
+      );
+
       // Build the detailed transactions
       const transactionsWithDetails = [];
-      for (const transaction of transactions) {
+      for (const transaction of filteredTransactions) {
           const jeuxDetails = [];
           for (const jeu of transaction.jeux) {
               // Find the jeu in the "jeux" collection
