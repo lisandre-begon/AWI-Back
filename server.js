@@ -39,7 +39,7 @@ app.use(cors());
 
     // Start server
     exec(`lsof -i:${PORT}`, (err, stdout, stderr) => {
-      const port = (stdout || stderr) ? fallbackPort : PORT;
+      const port = (stdout || stderr) ? PORT : PORT;
       app.listen(port, () => {
         console.log(`Server is running on http://localhost:${port}`);
       });
