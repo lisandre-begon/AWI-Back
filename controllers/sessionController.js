@@ -11,65 +11,53 @@ class SessionController {
     static async createSession(req, res){
         try{
             const db = await connectToDatabase();
-            const db = client.db("awidatabase");
             const sessionCollection = db.collection("session");
-
-            const {dateDebut, dateFin, fraisDepot, statutSession} = req.body;
-
+    
+            const { dateDebut, dateFin, fraisDepot, statutSession } = req.body;
+    
             if (!dateDebut) return res.status(400).json({ message: 'Une date de debut est requise.' });
             if (!dateFin) return res.status(400).json({ message: 'Une date de fin est requise.' });
-            if (!FraisDepot) return res.status(400).json({ message: 'Des frais de depots sont requis.' });
-            if (!statutSession) return res.status(400).json({ message: 'un statut est requis.' });
-
-            if(dateDebut > dateFin){
-                return res.status(400).json({ message: 'La date de debut est apres la date de fin' });
+            if (!fraisDepot) return res.status(400).json({ message: 'Des frais de depots sont requis.' });
+            if (!statutSession) return res.status(400).json({ message: 'Un statut est requis.' });
+    
+            if (dateDebut > dateFin) {
+                return res.status(400).json({ message: 'La date de debut est après la date de fin' });
             }
-
-            const newSession = {
-                dateDebut, 
-                dateFin,
-                fraisDepot, 
-                statutSession
-            };
-
+    
+            const newSession = { dateDebut, dateFin, fraisDepot, statutSession };
+    
             await sessionCollection.insertOne(newSession);
-            res.status(201).json({ message: 'Session créé avec succès.' });
-        }catch(error) {
+            res.status(201).json({ message: 'Session créée avec succès.' });
+        } catch(error) {
             console.error('Erreur lors de la création de la session', error);
-            res.status(500).json({ message: 'Erreur serveur lors de la session.' });
-        } finally {
-            await client.close();
+            res.status(500).json({ message: 'Erreur serveur lors de la création de la session.' });
         }
-
     }
-
+    
     static async getSessionEnCours(req, res){
         try{
-            await client.connect();
-            const db = client.db("awidatabase");
-            const sessionCollection = db.collection("Session");
-
-            const session = await sessionCollection.findOne({statut = "En cours"}).toArray();
+            const db = await connectToDatabase();
+            const sessionCollection = db.collection("session");
+    
+            const session = await sessionCollection.findOne({ statut: "En cours" });
             if (!session) {
                 return res.status(404).json({ message: 'Pas de session en cours' });
             }
-
+    
             res.status(200).json(session);
         } catch (error) {
             console.error(`Erreur lors de la récupération de la session en cours`, error);
             res.status(500).json({ message: 'Erreur lors de la récupération de la session' });
-        } finally {
-            await client.close();
         }
     }
-
+    
     static async getSessionPlanifiee(req, res){
         try{
             await client.connect();
             const db = client.db("awidatabase");
             const sessionCollection = db.collection("Session");
 
-            const session = await sessionCollection.findOne({statut = "Planified"}).toArray();
+            const session = await sessionCollection.findOne({statut: "Planifiée"}).toArray();
             if (!session) {
                 return res.status(404).json({ message: 'Pas de session planifie' });
             }
@@ -89,7 +77,7 @@ class SessionController {
             const db = client.db("awidatabase");
             const sessionCollection = db.collection("Session");
 
-            const session = await sessionCollection.findOne({statut = "Planified"}).toArray();
+            const session = await sessionCollection.findOne({statut: "Planifiée"}).toArray();
             if (!session) {
                 return res.status(404).json({ message: 'Pas de session planifie' });
             }
@@ -128,7 +116,7 @@ class SessionController {
             const db = client.db("awidatabase");
             const sessionCollection = db.collection("session");
 
-            const session = await sessionCollection.findOne({statut = "En cours"}).toArray();
+            const session = await sessionCollection.findOne({statut: "En cours"}).toArray();
             if(activeSession) {
                 return res.status(200).json({isActive: true});
             }else {
@@ -141,5 +129,4 @@ class SessionController {
 }
 
 
-
-
+module.exports = SessionController;

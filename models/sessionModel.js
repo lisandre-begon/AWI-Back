@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const session = new mongoose.Schema({
+const sessionSchema = new mongoose.Schema({
   dateDebut: {
     type: Date,
     required: true,
@@ -11,15 +11,15 @@ const session = new mongoose.Schema({
     required: true,
   },
   fraisDepot: {
-    type : Number,
-    required : true
-  }
+    type: Number,
+    required: true
+  },
   statutSession: {
     type: String,
-    required : true
+    required: true
   }
 }, {
   timestamps: true,
 });
 
-module.exports = mongoose.model('session', sessinShema);
+module.exports = mongoose.model('Session', sessionSchema);
