@@ -24,6 +24,8 @@ app.use(express.json());
     const categorieRoutes = require('./routes/categorieRoutes');
     const gestionnaireRoutes = require('./routes/gestionnaireRoutes');
     const typeJeuRoutes = require('./routes/typeJeuRoutes');
+    const sessionRoutes = require('./routes/sessionRoutes');
+
 
     // Définir la route de base
     app.get('/', (req, res) => {
@@ -38,6 +40,7 @@ app.use(express.json());
     app.use('/api/categorie', categorieRoutes);
     app.use('/api/gestionnaire', gestionnaireRoutes);
     app.use('/api/typejeu', typeJeuRoutes);
+    app.use('/api/session', sessionRoutes)
 
     // Lancer le serveur
     exec(`lsof -i:${defaultPort}`, (err, stdout, stderr) => {

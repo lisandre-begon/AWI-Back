@@ -36,6 +36,8 @@ class TypeJeuController {
         } finally {
             await client.close();
         }
+
+        
     }
 
     static async getTypeJeuById(req, res) {
