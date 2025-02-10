@@ -151,7 +151,6 @@ class GestionnaireController {
     // Connexion d'un gestionnaire
     static async login(req, res){
         try {
-
             const db = await connectToDatabase();
             const gestionnairesCollection = db.collection("gestionnaires");
             const { pseudo, mot_de_passe } = req.body;
