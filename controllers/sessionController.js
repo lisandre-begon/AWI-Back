@@ -39,7 +39,7 @@ class SessionController {
             const db = await connectToDatabase();
             const sessionCollection = db.collection("session");
     
-            const session = await sessionCollection.findOne({ statut: "En cours" });
+            const session = await sessionCollection.findOne({ statutSession: "En cours" });
             if (!session) {
                 return res.status(404).json({ message: 'Pas de session en cours' });
             }
@@ -57,7 +57,7 @@ class SessionController {
             const db = client.db("awidatabase");
             const sessionCollection = db.collection("Session");
 
-            const session = await sessionCollection.findOne({statut: "Planifiée"}).toArray();
+            const session = await sessionCollection.findOne({statutSession: "Planifiée"}).toArray();
             if (!session) {
                 return res.status(404).json({ message: 'Pas de session planifie' });
             }
@@ -77,7 +77,7 @@ class SessionController {
             const db = client.db("awidatabase");
             const sessionCollection = db.collection("Session");
 
-            const session = await sessionCollection.findOne({statut: "Planifiée"}).toArray();
+            const session = await sessionCollection.findOne({statutSession: "Planifiée"}).toArray();
             if (!session) {
                 return res.status(404).json({ message: 'Pas de session planifie' });
             }
@@ -116,7 +116,7 @@ class SessionController {
             const db = client.db("awidatabase");
             const sessionCollection = db.collection("session");
 
-            const session = await sessionCollection.findOne({statut: "En cours"}).toArray();
+            const session = await sessionCollection.findOne({statutSession: "En cours"}).toArray();
             if(activeSession) {
                 return res.status(200).json({isActive: true});
             }else {

@@ -152,7 +152,8 @@ class JeuController {
             if (!ObjectId.isValid(proprietaire)) {
                 return res.status(404).json({ message: 'Vendeur non trouvé.' });
             }
-    
+
+            
             const jeux = await jeuxCollection.find({ proprietaire: new ObjectId(proprietaire) }).toArray();
     
             if (jeux.length === 0) {
@@ -207,6 +208,9 @@ class JeuController {
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
             const typeJeuxCollection = db.collection("typeJeux");
+            const sessionCollection = db.collection("session");
+
+            const activeSession = await sessionCollection.findOne({ statutSession: "En cours" });
 
             const {
                 proprietaire,
@@ -320,8 +324,18 @@ class JeuController {
                 return map;
             }, {});
 
+            if (!activeSession) {
+                return res.status(400).json({ message: "Aucune session active en cours." });
+            }
+
+            // Filter games to include only those created within the active session's date range
+            const filteredJeux = jeux.filter(jeu => 
+                new Date(jeu.createdAt) >= new Date(activeSession.dateDebut) &&
+                new Date(jeu.createdAt) <= new Date(activeSession.dateFin)
+            );
+
             // Map over games to replace IDs with names
-            const jeuxWithDetails = jeux.map(jeu => ({
+            const jeuxWithDetails = filteredJeux.map(jeu => ({
                 etiquette: jeu._id,
                 vendeur: vendeursMap[jeu.proprietaire?.toString()], // Get vendeur name from map
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
@@ -349,11 +363,14 @@ class JeuController {
             const vendeursCollection = db.collection("vendeurs");
             const categoriesCollection = db.collection("categories");
             const typeJeuxCollection = db.collection("typeJeux");
+            const sessionCollection = db.collection("session");
 
             const jeux = await jeuxCollection.find().toArray();
             const vendeurs = await vendeursCollection.find().toArray();
             const categories = await categoriesCollection.find().toArray();
             const typeJeux = await typeJeuxCollection.find().toArray();
+            
+            const activeSession = await sessionCollection.findOne({ statutSession: "En cours" });
 
             const vendeursMap = vendeurs.reduce((map, vendeur) => {
                 map[vendeur._id.toString()] = vendeur.nom;
@@ -370,8 +387,19 @@ class JeuController {
                 return map;
             }, {});
 
+            if (!activeSession) {
+                return res.status(400).json({ message: "Aucune session active en cours." });
+            }
+
+            // Filter games to include only those created within the active session's date range
+            const filteredJeux = jeux.filter(jeu => 
+                new Date(jeu.createdAt) >= new Date(activeSession.dateDebut) &&
+                new Date(jeu.createdAt) <= new Date(activeSession.dateFin)
+            );
+
+
             // Map over games to replace IDs with names
-            const jeuxWithDetails = jeux.map(jeu => ({
+            const jeuxWithDetails = filteredJeux.map(jeu => ({
                 etiquette: jeu._id,
                 vendeur: vendeursMap[jeu.proprietaire?.toString()], // Get vendeur name from map
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
