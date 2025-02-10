@@ -1,7 +1,12 @@
 const { MongoClient, ObjectId } = require('mongodb');
+const bcrypt = require('bcrypt');
+require('dotenv').config();
+const jwt = require('jsonwebtoken');
+
 
 const uri = "mongodb+srv://lisandrebegon1:czbssegw5de6kicv@awidatabase.1z4go.mongodb.net/?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
+const SECRET_KEY = process.env.SECRET;
 
 class GestionnaireController {
     static async createGestionnaire(req, res) {
@@ -20,9 +25,11 @@ class GestionnaireController {
                 return res.status(400).json({ message: 'Ce pseudo est déjà utilisé.' });
             }
 
+            const hash_mot_de_passe = await bcrypt.hash(mot_de_passe, 10);
+
             const newGestionnaire = {
                 pseudo,
-                mot_de_passe,
+                mot_de_passe : hash_mot_de_passe,
             };
 
             await gestionnairesCollection.insertOne(newGestionnaire);
@@ -89,6 +96,8 @@ class GestionnaireController {
                 return res.status(404).json({ message: 'Gestionnaire non trouvé.' });
             }
 
+            
+
             const updatedGestionnaire = {
                 $set: {
                     pseudo: req.body.pseudo,
@@ -137,6 +146,67 @@ class GestionnaireController {
             await client.close();
         }
     }
+
+    // Connexion d'un gestionnaire
+    static async login(req, res){
+        try {
+
+            await client.connect();
+            const db = client.db("awidatabase");
+            const gestionnairesCollection = db.collection("gestionnaires");
+            const { pseudo, mot_de_passe } = req.body;
+
+            const gestionnaire = await gestionnairesCollection.findOne({ pseudo : pseudo });
+            console.log(gestionnaire);
+        if (!gestionnaire) {
+            return res.status(401).json({ message: 'Utilisateur incorrect' });
+        }
+        console.log("yes")
+        console.log(mot_de_passe)
+        console.log( gestionnaire.mot_de_passe)
+        const isMatch = await bcrypt.compare(mot_de_passe, gestionnaire.mot_de_passe);
+        console.log(isMatch);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'mot de passe incorrect' });
+        }
+
+        console.log("Clé secrète :", SECRET_KEY);
+
+        const token = jwt.sign({ id: gestionnaire._id, pseudo: gestionnaire.pseudo }, SECRET_KEY, { expiresIn: '1h' });
+        console.log(token);
+        res.status(200).json({ message: 'Connexion réussie', token });
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur serveur', error });
+    }
+};
+
+//Déconnexion d'un gestionnaire
+static async logout(req, res){
+    try {
+        await client.connect();
+        const db = client.db("awidatabase");
+        const gestionnairesCollection = db.collection("gestionnaires");
+
+        const { pseudo } = req.body;
+        const gestionnaire = await gestionnairesCollection
+            .findOne({ pseudo })
+            .then((gestionnaire) => {
+                if (!gestionnaire) {
+                    return res.status(401).json({ message: 'Utilisateur non trouvé' });
+                }
+                res.status(200).json({ message: 'Déconnexion réussie' });
+            });
+    } catch (error) {
+        res.status(500).json({ message: 'Erreur serveur', error });
+    } 
+  }
+
+// Accès à la route admin protégée
+static async getGestPage(req, res) {
+    res.status(200).json({ message: 'Bienvenue sur la route admin sécurisée !' }); 
+};
+
 }
+
 
 module.exports = GestionnaireController;
