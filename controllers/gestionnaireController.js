@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 
 const uri = "mongodb+srv://lisandrebegon1:czbssegw5de6kicv@awidatabase.1z4go.mongodb.net/?retryWrites=true&w=majority";
 const client = new MongoClient(uri);
+const connectToDatabase = require('../config/database');
 const SECRET_KEY = process.env.SECRET;
 
 class GestionnaireController {
@@ -151,11 +152,10 @@ class GestionnaireController {
     static async login(req, res){
         try {
 
-            await client.connect();
-            const db = client.db("awidatabase");
+            const db = await connectToDatabase();
             const gestionnairesCollection = db.collection("gestionnaires");
             const { pseudo, mot_de_passe } = req.body;
-
+            console.log(pseudo);
             const gestionnaire = await gestionnairesCollection.findOne({ pseudo : pseudo });
             console.log(gestionnaire);
         if (!gestionnaire) {
@@ -183,8 +183,7 @@ class GestionnaireController {
 //Déconnexion d'un gestionnaire
 static async logout(req, res){
     try {
-        await client.connect();
-        const db = client.db("awidatabase");
+        const db = await connectToDatabase();
         const gestionnairesCollection = db.collection("gestionnaires");
 
         const { pseudo } = req.body;
