@@ -1,22 +1,20 @@
-// server.js
 const express = require('express');
+const cors = require('cors');
 const connectToDatabase = require('./config/database');
 const { exec } = require('child_process');
 
 const app = express();
 const defaultPort = 5000;
-const fallbackPort = 5050;
+const fallbackPort = 5000;
 
-// Middleware pour analyser les requêtes JSON
 app.use(express.json());
+app.use(cors());
 
 (async () => {
   try {
-    // Connexion à MongoDB Atlas
     await connectToDatabase();
     console.log("Connexion réussie à MongoDB depuis le serveur !");
 
-    // Importation des routes
     const transactionRoutes = require('./routes/transactionRoutes');
     const vendeurRoutes = require('./routes/vendeurRoutes');
     const acheteurRoutes = require('./routes/acheteurRoutes');
@@ -26,8 +24,6 @@ app.use(express.json());
     const typeJeuRoutes = require('./routes/typeJeuRoutes');
     const sessionRoutes = require('./routes/sessionRoutes');
 
-
-    // Définir la route de base
     app.get('/', (req, res) => {
       res.send('Hello, world!');
     });
@@ -40,9 +36,9 @@ app.use(express.json());
     app.use('/api/categorie', categorieRoutes);
     app.use('/api/gestionnaire', gestionnaireRoutes);
     app.use('/api/typejeu', typeJeuRoutes);
-    app.use('/api/session', sessionRoutes)
+    app.use('/api/session', sessionRoutes);
 
-    // Lancer le serveur
+    // Start server
     exec(`lsof -i:${defaultPort}`, (err, stdout, stderr) => {
       const port = (stdout || stderr) ? fallbackPort : defaultPort;
       app.listen(port, () => {
@@ -51,6 +47,6 @@ app.use(express.json());
     });
   } catch (err) {
     console.error("Erreur lors de la configuration du serveur :", err);
-    process.exit(1); // Quitte si la configuration échoue
+    process.exit(1);
   }
 })();
