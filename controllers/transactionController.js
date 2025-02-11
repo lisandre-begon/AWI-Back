@@ -96,7 +96,7 @@ class TransactionController {
         }
 
         //On met à jour le solde du propriétaire (solde = solde - frais)
-        await vendeursCollection.updateOne({ _id: new ObjectId(proprietaire) }, { $inc: { solde: -frais } });
+        await vendeursCollection.updateOne({ _id: new ObjectId(proprietaire) }, { $inc: { soldes: -frais } });
 
 
         // Créez la transaction pour le dépôt
@@ -117,7 +117,7 @@ class TransactionController {
       
         
 
-        await vendeursCollection.updateOne({ _id: new ObjectId(acheteur) }, { $inc: { solde: -frais + remise } });
+        await vendeursCollection.updateOne({ _id: new ObjectId(acheteur) }, { $inc: { soldes: -frais + remise } });
         await transactionCollection.insertOne(newDepot);
         return res.status(201).json({ message: "Dépot créé avec succès.", transaction: newDepot });
 
@@ -165,7 +165,7 @@ class TransactionController {
         //Pour chaque jeu vendu on modifie le solde du propriétaire (solde = solde + prix_unitaire * quantite)
         for (const jeu of jeux) {
           const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
-          await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.vendeurId) }, { $inc: { solde: jeu.prix_unitaire * jeu.quantite } });
+          await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.vendeurId) }, { $inc: { soldes: jeu.prix_unitaire * jeu.quantite } });
         }
 
         const newVente = {
@@ -777,44 +777,70 @@ static async getTransactions(req, res) {
   }
 
   static async deleteTransaction(req, res) {
-    //on supprime d'abords la transaction
     try {
-      const db = await connectToDatabase();
-      const transactionCollection = db.collection('transactions');
-      const transaction = await transactionCollection.findOne({ _id: new ObjectId(req.params.id) });
-      if (!transaction) {
-        return res.status(404).json({ message: 'Transaction non trouvée.' });
-      }
-      await transactionCollection.deleteOne({ _id: new ObjectId(req.params.id) });
-      res.status(200).json({ message: 'Transaction supprimée avec succès.' });
-      //pour chaque jeux on vérifie si le jeu à en statut vendu si oui on le remet en disponible
-      const jeuxCollection = db.collection("jeux");
-      for (const jeu of transaction.jeux) {
-        const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
-        if (jeuData.statut === 'vendu') {
-          await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $set: { statut: 'disponible' } });
-        }
-        //on remet ensuite les quantités
-        await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $inc: { quantites: jeu.quantite } });
+        const db = await connectToDatabase();
+        const transactionCollection = db.collection('transactions');
+        const jeuxCollection = db.collection("jeux");
+        const vendeursCollection = db.collection("vendeurs");
 
-        if (transaction.statut === 'vente') {
-          //pour chaque jeu vendu on modifie le solde du propriétaire (solde = solde - prix_unitaire * quantite)
-          for (const jeu of transaction.jeux) {
+        const transaction = await transactionCollection.findOne({ _id: new ObjectId(req.params.id) });
+
+        if (!transaction) {
+            return res.status(404).json({ message: 'Transaction non trouvée.' });
+        }
+
+        for (const jeu of transaction.jeux) {
             const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
-            await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.vendeurId) }, { $inc: { soldes: -jeu.prix_unitaire * jeu.quantite } });
-          }
-        } else if (transaction.statut === 'depot') {
-          //On met à jour le solde du propriétaire (soldes = soldes + frais + prix_total)
-          await vendeursCollection.updateOne({ _id: new ObjectId(transaction.proprietaire) }, { $inc: { soldes: transaction.frais + transaction.prix_total } });
-        }
-      }
 
+            if (!jeuData) continue;
+
+            if (transaction.statut === 'depot') {
+                if (jeuData.quantites === jeu.quantite) {
+                    await jeuxCollection.deleteOne({ _id: new ObjectId(jeu.jeuId) });
+                } else {
+                    await jeuxCollection.updateOne(
+                        { _id: new ObjectId(jeu.jeuId) },
+                        { $inc: { quantites: jeu.quantite } }
+                    );
+                }
+
+                // ✅ Use `soldes` instead of `solde`
+                await vendeursCollection.updateOne(
+                    { _id: new ObjectId(transaction.proprietaire) },
+                    { $inc: { soldes: transaction.frais + transaction.prix_total } }
+                );
+
+            } else if (transaction.statut === 'vente') {
+                if (jeuData.statut === 'vendu') {
+                    await jeuxCollection.updateOne(
+                        { _id: new ObjectId(jeu.jeuId) },
+                        { $set: { statut: 'disponible' } }
+                    );
+                }
+
+                await jeuxCollection.updateOne(
+                    { _id: new ObjectId(jeu.jeuId) },
+                    { $inc: { quantites: jeu.quantite } }
+                );
+
+                // ✅ Use `soldes` instead of `solde`
+                await vendeursCollection.updateOne(
+                    { _id: new ObjectId(jeuData.proprietaire) },
+                    { $inc: { soldes: -jeu.prix_unitaire * jeu.quantite } }
+                );
+            }
+        }
+
+        await transactionCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+
+        res.status(200).json({ message: 'Transaction supprimée avec succès.' });
 
     } catch (error) {
-      console.error('Erreur lors de la suppression de la transaction :', error);
-      res.status(500).json({ message: 'Erreur serveur lors de la suppression de la transaction.' });
+        console.error('❌ Erreur lors de la suppression de la transaction :', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la suppression de la transaction.' });
     }
-  }
+}
+
 }
 
 module.exports = TransactionController;
