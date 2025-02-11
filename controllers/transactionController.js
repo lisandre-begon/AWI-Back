@@ -208,6 +208,8 @@ class TransactionController {
       const typeJeuxCollection = db.collection("typeJeux");
       const categoriesCollection = db.collection("categories");
       const jeuxCollection = db.collection("jeux");
+      const sessionCollection = db.collection("session");
+      const activeSession = await sessionCollection.findOne({ statutSession: "En cours" });
 
       const {
         statut,
@@ -398,8 +400,8 @@ class TransactionController {
                     intitule: typeJeu?.intitule || "Inconnu",
                     editeur: typeJeu?.editeur || "Inconnu",
                     quantite: jeu.quantite,
-                    prix_unitaire: jeu.prix_unitaire,
-                    vendeur: proprietaire.nom, // Add proprietaire ID from jeuData
+                    prix_unitaire: jeu?.prix_unitaire,
+                    vendeur: proprietaire?.nom, // Add proprietaire ID from jeuData
                     categories: categoryNames,
                 });
             }
