@@ -66,11 +66,12 @@ class JeuController {
                 const newQuantite = jeuEnVente.quantites + parseInt(quantites);
                 await jeuxCollection.updateOne({ _id: jeuEnVente._id }, { $set: { quantites: newQuantite } });
                 return res.status(201).json({ message: 'Quantité du jeu mise à jour avec succès.', jeu: newJeu });
-            } else {
-                await jeuxCollection.insertOne(newJeu);
             }
+            const result = await jeuxCollection.insertOne(newJeu);
+            newJeu._id = result.insertedId;  // Attach the created ID
 
-            res.status(201).json({ message: 'Jeu créé avec succès.' });
+            res.status(201).json({ message: 'Jeu créé avec succès.', jeu: newJeu });
+
         } catch (error) {
             console.error('Erreur lors de la création du jeu:', error);
             res.status(500).json({ message: 'Erreur serveur lors de la création du jeu.' });
