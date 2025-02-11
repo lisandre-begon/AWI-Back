@@ -110,8 +110,8 @@ class TransactionController {
           frais,
           jeux: jeux.map(jeu => ({
             jeuId: new ObjectId(jeu.jeuId),
-            quantite: jeu.quantite,
-            prix_unitaire: jeu.prix_unitaire,
+            quantite: jeu.quantites,
+            prix_unitaire: jeu.prix,
           })),
         };
 
