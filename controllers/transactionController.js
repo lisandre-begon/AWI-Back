@@ -70,7 +70,7 @@ class TransactionController {
             continue;
           }
 
-          if (!jeuData.vendeurId.equals(new ObjectId(proprietaire))) {
+          if (!jeuData.proprietaire.equals(new ObjectId(proprietaire))) {
             invalidJeux.push(jeu.jeuId);
           }
 
