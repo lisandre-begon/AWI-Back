@@ -72,7 +72,7 @@ class TypeJeuController {
             const typeJeuCollection = db.collection("typeJeux");
 
             const typeJeux = await typeJeuCollection
-                .find({}, { projection: { _id: 0, intitule: 1, editeur: 1 } })
+                .find({}, { projection: { _id: 1, intitule: 1, editeur: 1 } })
                 .toArray();
 
             res.status(200).json(typeJeux);
