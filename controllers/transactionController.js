@@ -807,7 +807,7 @@ static async getTransactions(req, res) {
                 // ✅ Use `soldes` instead of `solde`
                 await vendeursCollection.updateOne(
                     { _id: new ObjectId(transaction.proprietaire) },
-                    { $inc: { soldes: transaction.frais + transaction.prix_total } }
+                    { $inc: { soldes: transaction.frais } }
                 );
 
             } else if (transaction.statut === 'vente') {
