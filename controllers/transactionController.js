@@ -109,11 +109,13 @@ class TransactionController {
           remise: remise || 0,
           frais,
           jeux: jeux.map(jeu => ({
-            jeuId: new ObjectId(jeu.jeuId),
-            quantite: jeu.quantites,
-            prix_unitaire: jeu.prix,
+              jeuId: new ObjectId(jeu.jeuId),
+              quantite: jeu.quantite,   // ✅ Correct field from frontend
+              prix_unitaire: jeu.prix_unitaire  // ✅ Correct field from frontend
           })),
-        };
+      };
+      
+        
 
         await vendeursCollection.updateOne({ _id: new ObjectId(acheteur) }, { $inc: { solde: -frais + remise } });
         await transactionCollection.insertOne(newDepot);
