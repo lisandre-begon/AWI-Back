@@ -295,16 +295,14 @@ class JeuController {
                 filters.statut = statut;
             }
 
+            console.log("Filtres appliqués à MongoDB :", filters); // Debug du filtre appliqué
+
             // If no filters are applied, call getAllJeux
             if (Object.keys(filters).length === 0) {
                 return JeuController.getAllJeux(req, res);
             }
 
             const jeux = await jeuxCollection.find(filters).toArray();
-
-            if (jeux.length === 0) {
-                return res.status(404).json({ message: 'Aucun jeu ne correspond aux filtres fournis.' });
-            }
 
             const vendeurs = await vendeursCollection.find().toArray();
             const categories = await categoriesCollection.find().toArray();
