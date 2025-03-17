@@ -9,11 +9,28 @@ class TypeJeuController {
             await client.connect();
             const db = client.db("awidatabase");
             const typeJeuCollection = db.collection("typeJeux");
+            const categoriesCollection = db.collection("categories");
 
-            const { intitule, editeur } = req.body;
+            const { intitule, editeur, categories } = req.body;
 
             if (!intitule) return res.status(400).json({ message: 'L\'intitulé est requis.' });
             if (!editeur) return res.status(400).json({ message: 'L\'éditeur est requis.' });
+
+            if (!categories || categories.length === 0) {
+                return res.status(400).json({ message: 'Au moins une catégorie est requise.' });
+            }
+
+            // Validation des catégories
+            const invalidCategories = [];
+            for (const categoryId of categories) {
+                const categoryExists = await categoriesCollection.findOne({ _id: new ObjectId(categoryId) });
+                if (!categoryExists) invalidCategories.push(categoryId);
+            }
+            if (invalidCategories.length > 0) {
+                return res.status(404).json({
+                    message: `Les catégories suivantes n'existent pas : ${invalidCategories.join(', ')}`,
+                });
+            }
 
             const existingTypeJeu = await typeJeuCollection.findOne({ intitule });
             if (existingTypeJeu) {
@@ -23,6 +40,7 @@ class TypeJeuController {
             const newTypeJeu = {
                 intitule,
                 editeur,
+                categories: categories.map(categoryId => new ObjectId(categoryId)),
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -46,12 +64,26 @@ class TypeJeuController {
             await client.connect();
             const db = client.db("awidatabase");
             const typeJeuCollection = db.collection("typeJeux");
+            const categoriesCollection = db.collection("categories");
+
+            const categories = await categoriesCollection.find().toArray();            
+
+            const categoriesMap = categories.reduce((map, category) => {
+                map[category._id.toString()] = category.name;
+                return map;
+            }, {});
 
             if (!ObjectId.isValid(id)) {
                 return res.status(404).json({ message: 'Type de jeu non trouvé.' });
             }
 
-            const typeJeu = await typeJeuCollection.findOne({ _id: new ObjectId(id) }, { projection: { _id: 0, intitule: 1, editeur: 1 } });
+            const typeJeu = await typeJeuCollection.findOne({ _id: new ObjectId(id) }, { projection: { 
+                _id: 0, 
+                intitule: 1, 
+                editeur: 1, 
+                categories: 1, 
+            } });
+            
             if (!typeJeu) {
                 return res.status(404).json({ message: 'Type de jeu non trouvé.' });
             }
@@ -72,7 +104,7 @@ class TypeJeuController {
             const typeJeuCollection = db.collection("typeJeux");
 
             const typeJeux = await typeJeuCollection
-                .find({}, { projection: { _id: 1, intitule: 1, editeur: 1 } })
+                .find({}, { projection: { _id: 1, intitule: 1, editeur: 1, categories : 1 } })
                 .toArray();
 
             res.status(200).json(typeJeux);

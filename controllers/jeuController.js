@@ -12,15 +12,11 @@ class JeuController {
             const jeuxCollection = db.collection("jeux");
             const typeJeuxCollection = db.collection("typeJeux");
             const vendeursCollection = db.collection("vendeurs");
-            const categoriesCollection = db.collection("categories");
 
-            const { proprietaire, typeJeuId, prix, categories, quantites, statut } = req.body;
+            const { proprietaire, typeJeuId, prix, quantites, statut } = req.body;
 
             if (!proprietaire) return res.status(400).json({ message: 'L\'ID du vendeur est requis.' });
             if (!prix || prix <= 0) return res.status(400).json({ message: 'Un prix valide est requis.' });
-            if (!categories || categories.length === 0) {
-                return res.status(400).json({ message: 'Au moins une catégorie est requise.' });
-            }
             if (!typeJeuId) return res.status(400).json({ message: 'L\'ID du type de jeu est requis.' });
             if (statut && !['pas disponible', 'disponible'].includes(statut)) {
                 return res.status(400).json({ message: 'Statut invalide.' });
@@ -38,18 +34,6 @@ class JeuController {
                 return res.status(404).json({ message: 'Le type de jeu spécifié n\'existe pas.' });
             }
 
-            // Validation des catégories
-            const invalidCategories = [];
-            for (const categoryId of categories) {
-                const categoryExists = await categoriesCollection.findOne({ _id: new ObjectId(categoryId) });
-                if (!categoryExists) invalidCategories.push(categoryId);
-            }
-            if (invalidCategories.length > 0) {
-                return res.status(404).json({
-                    message: `Les catégories suivantes n'existent pas : ${invalidCategories.join(', ')}`,
-                });
-            }
-
             //Cas où le jeu est déjà en vente par le même vendeur
             const jeuEnVente = await jeuxCollection.findOne({ proprietaire: new ObjectId(proprietaire), typeJeuId: new ObjectId(typeJeuId) });
             const newJeu = {
@@ -58,10 +42,9 @@ class JeuController {
                 statut: statut || 'disponible',
                 prix: parseFloat(prix),
                 quantites: parseInt(quantites) || 1,
-                categories: categories.map(id => new ObjectId(id)),
                 createdAt: new Date(),
             };
-            if (jeuEnVente && jeuEnVente.statut === 'disponible') {
+            if ((jeuEnVente && jeuEnVente.statut === 'disponible') && (jeuEnVente.prix === newJeu.prix)) {
                 //On rajoute juste la quantité a la quantité du jeu existant
                 const newQuantite = jeuEnVente.quantites + parseInt(quantites);
                 await jeuxCollection.updateOne({ _id: jeuEnVente._id }, { $set: { quantites: newQuantite } });
@@ -125,10 +108,10 @@ class JeuController {
                 etiquette: jeu._id,
                 vendeur: vendeursMap[jeu.proprietaire?.toString()], // Map vendeur ID to name
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
-                editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
+                categories: typeJeuxMap[jeu.typeJeuId?.toString()].categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
+                quantites: jeu.quantites,
                 prix: jeu.prix,
                 statut: jeu.statut,
-                categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
                 dateDepot: jeu.createdAt,
             };
     
@@ -319,7 +302,7 @@ class JeuController {
             }, {});
 
             const typeJeuxMap = typeJeux.reduce((map, typeJeu) => {
-                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
+                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur, categories: typeJeu.categories };
                 return map;
             }, {});
 
@@ -339,11 +322,10 @@ class JeuController {
                 vendeur: vendeursMap[jeu.proprietaire?.toString()], // Get vendeur name from map
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
                 editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
+                categories: typeJeuxMap[jeu.typeJeuId?.toString()].categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
                 statut: jeu.statut,
                 prix: jeu.prix,
                 quantites: jeu.quantites,
-                categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
-                dateDepot: jeu.createdAt
             }));
 
             res.status(200).json(jeuxWithDetails);
@@ -382,7 +364,7 @@ class JeuController {
             }, {});
 
             const typeJeuxMap = typeJeux.reduce((map, typeJeu) => {
-                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
+                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur, categories: typeJeu.categories };
                 return map;
             }, {});
 
@@ -406,7 +388,7 @@ class JeuController {
                 statut: jeu.statut,
                 prix: jeu.prix,
                 quantites: jeu.quantites,
-                categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
+                categories: typeJeuxMap[jeu.typeJeuId?.toString()].categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
                 dateDepot: jeu.createdAt
             }));
 

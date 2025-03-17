@@ -30,13 +30,6 @@ const jeuSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    categories: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Categorie',
-        required: true,
-      },
-    ],
     dateDepot: {
       type: Date,
       alias: 'createdAt',

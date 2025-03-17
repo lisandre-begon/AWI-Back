@@ -10,6 +10,13 @@ const typeJeuSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  categories: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Categorie',
+      required: true,
+    },
+  ],
 }, {
   timestamps: true,
 });
