@@ -2,10 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const connectToDatabase = require('./config/database');
 const { exec } = require('child_process');
-const cron = require('node-cron');
-const SessionController = require('./controllers/sessionController');
-
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -48,12 +44,7 @@ app.use(cors());
       });
     });
 
-  
-    // Schedule the update to run every day at midnight
-    cron.schedule('0 0 * * *', () => {
-        SessionController.updateSessionStatus();
-        console.log('Scheduled session status update running...');
-    });
+
 
   } catch (err) {
     console.error("Erreur lors de la configuration du serveur :", err);
