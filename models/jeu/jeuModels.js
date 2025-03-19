@@ -6,7 +6,7 @@ const jeuSchema = new mongoose.Schema(
       type: Number,
       alias : '_id'
     },
-    vendeurId: {
+    proprietaire: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Vendeur',
       required: true,

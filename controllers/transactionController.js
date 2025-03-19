@@ -165,7 +165,7 @@ class TransactionController {
         //Pour chaque jeu vendu on modifie le solde du propriétaire (solde = solde + prix_unitaire * quantite)
         for (const jeu of jeux) {
           const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
-          await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.vendeurId) }, { $inc: { soldes: jeu.prix_unitaire * jeu.quantite } });
+          await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.proprietaire) }, { $inc: { soldes: jeu.prix_unitaire * jeu.quantite } });
         }
 
         const newVente = {
@@ -186,7 +186,7 @@ class TransactionController {
         //Pour chaque jeu vendu on modifie le solde du propriétaire (solde = solde + prix_unitaire * quantite)
         for (const jeu of newVente.jeux) {
           const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
-          await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.vendeurId) }, { $inc: { soldes: jeu.prix_unitaire * jeu.quantite } });
+          await vendeursCollection.updateOne({ _id: new ObjectId(jeuData.proprietaire) }, { $inc: { soldes: jeu.prix_unitaire * jeu.quantite } });
         }
 
         await transactionCollection.insertOne(newVente);
@@ -307,7 +307,7 @@ class TransactionController {
         if (!proprietaireJeuExists) {
           return res.status(404).json({ message: 'Propriétaire du jeu non trouvé.' });
         }
-        jeuFilters.vendeurId = new ObjectId(proprietaireJeu);
+        jeuFilters.proprietaire = new ObjectId(proprietaireJeu);
       }
 
       //on peut avoir plusieurs catégorie dans le paramètre catégorie
@@ -388,11 +388,9 @@ class TransactionController {
 
                 // Find the typeJeu associated with the jeu
                 const typeJeu = await typeJeuxCollection.findOne({ _id: new ObjectId(jeuData.typeJeuId) });
-                const proprietaire = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.vendeurId) });
+                const proprietaire = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.proprietaire) });
                 // Map category IDs to names using the categoriesMap
-                const categoryNames = (jeuData.categories || []).map(
-                  catId => categoriesMap[catId.toString()] || "Inconnu"
-              );
+                const categoryNames = (typeJeu?.categories || []).map(categoryId => categoriesMap[categoryId.toString()] || 'Inconnu');
 
                 // Add detailed jeu information
                 jeuxDetails.push({
@@ -495,12 +493,11 @@ static async getTransactions(req, res) {
 
               // Find the typeJeu associated with the jeu
               const typeJeu = await typeJeuxCollection.findOne({ _id: new ObjectId(jeuData.typeJeuId) });
-              const proprietaire = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.vendeurId) });
+              const proprietaire = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.proprietaire) });
 
               // Map category IDs to names using the categoriesMap
-              const categoryNames = (jeuData.categories || []).map(
-                  catId => categoriesMap[catId.toString()] || "Inconnu"
-              );
+              const categoryNames = (typeJeu?.categories || []).map(categoryId => categoriesMap[categoryId.toString()] || 'Inconnu');
+
 
               // Add detailed jeu information
               jeuxDetails.push({
@@ -586,7 +583,7 @@ static async getTransactions(req, res) {
             if (!jeuData) continue;
 
             const typeJeu = await typeJeuxCollection.findOne({ _id: new ObjectId(jeuData.typeJeuId) });
-            const vendeur = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.vendeurId) });
+            const vendeur = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.proprietaire) });
 
             // Map category IDs to names using the categoriesMap
             const categoryNames = (jeuData.categories || []).map(
@@ -706,7 +703,7 @@ static async getTransactions(req, res) {
             await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $set: { statut: 'disponible' } });
           }
           await vendeursCollection.updateOne(
-            { _id: new ObjectId(jeuData.vendeurId) },
+            { _id: new ObjectId(jeuData.proprietaire) },
             { $inc: { soldes: -(jeu.prix_unitaire * jeu.quantite) } }
           );
         }
@@ -726,7 +723,7 @@ static async getTransactions(req, res) {
             await jeuxCollection.updateOne({ _id: new ObjectId(jeu.jeuId) }, { $set: { statut: 'vendu' } });
           }
           await vendeursCollection.updateOne(
-            { _id: new ObjectId(jeuData.vendeurId) },
+            { _id: new ObjectId(jeuData.proprietaire) },
             { $inc: { soldes: jeu.prix_unitaire * jeu.quantite } }
           );
         }

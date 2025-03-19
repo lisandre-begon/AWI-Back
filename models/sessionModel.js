@@ -11,7 +11,7 @@ const sessionSchema = new mongoose.Schema({
     required: true,
   },
   fraisDepot: {
-    type: Number,
+    type: String,
     required: true
   },
   statutSession: {
