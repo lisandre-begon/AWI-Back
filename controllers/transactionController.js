@@ -409,19 +409,21 @@ class TransactionController {
                 id: transaction._id,
                 statut: transaction.statut,
                 gestionnaire: gestionnairesMap[transaction.gestionnaire?.toString()],
+                proprietaire: transaction.proprietaire ? vendeursMap[transaction.proprietaire.toString()] : null,
+                acheteur: transaction.acheteur ? acheteursMap[transaction.acheteur.toString()] : null,
                 date_transaction: transaction.date_transaction,
                 prix_total: transaction.prix_total,
                 frais: transaction.frais,
                 remise: transaction.remise,
             };
 
-            // Conditionally add proprietaire or acheteur if they exist
+            /*// Conditionally add proprietaire or acheteur if they exist
             if (transaction.proprietaire) {
                 transactionDetails.proprietaire = vendeursMap[transaction.proprietaire.toString()];
             }
             if (transaction.acheteur) {
                 transactionDetails.acheteur = acheteursMap[transaction.acheteur.toString()];
-            }
+            }*/
 
             transactionDetails.jeux = jeuxDetails;
             transactionsWithDetails.push(transactionDetails);
@@ -511,24 +513,26 @@ static async getTransactions(req, res) {
               });
           }
 
-          // Dynamically build the transaction object
-          const transactionDetails = {
+            // Dynamically build the transaction object
+            const transactionDetails = {
               id: transaction._id,
               statut: transaction.statut,
               gestionnaire: gestionnairesMap[transaction.gestionnaire?.toString()],
+              proprietaire: transaction.proprietaire ? vendeursMap[transaction.proprietaire.toString()] : null,
+              acheteur: transaction.acheteur ? acheteursMap[transaction.acheteur.toString()] : null,
               date_transaction: transaction.date_transaction,
               prix_total: transaction.prix_total,
               frais: transaction.frais,
               remise: transaction.remise,
           };
 
-          // Conditionally add proprietaire or acheteur if they exist
+          /*// Conditionally add proprietaire or acheteur if they exist
           if (transaction.proprietaire) {
               transactionDetails.proprietaire = vendeursMap[transaction.proprietaire.toString()];
           }
           if (transaction.acheteur) {
               transactionDetails.acheteur = acheteursMap[transaction.acheteur.toString()];
-          }
+          }*/
 
           transactionDetails.jeux = jeuxDetails;
           transactionsWithDetails.push(transactionDetails);
@@ -577,8 +581,14 @@ static async getTransactions(req, res) {
             return map;
         }, {});
 
+                // Filter transactions within the active session's date range
+        const filteredTransactions = transactions.filter(transaction => 
+          new Date(transaction.date_transaction) >= new Date(activeSession.dateDebut) &&
+          new Date(transaction.date_transaction) <= new Date(activeSession.dateFin)
+        );
+
         const jeuxDetails = [];
-        for (const jeu of transaction.jeux) {
+        for (const jeu of filteredTransactions.jeux) {
             const jeuData = await jeuxCollection.findOne({ _id: new ObjectId(jeu.jeuId) });
             if (!jeuData) continue;
 
@@ -586,9 +596,7 @@ static async getTransactions(req, res) {
             const vendeur = await vendeursCollection.findOne({ _id: new ObjectId(jeuData.proprietaire) });
 
             // Map category IDs to names using the categoriesMap
-            const categoryNames = (jeuData.categories || []).map(
-                catId => categoriesMap[catId.toString()] || "Inconnu"
-            );
+            const categoryNames = (typeJeu?.categories || []).map(categoryId => categoriesMap[categoryId.toString()] || 'Inconnu');
 
             jeuxDetails.push({
                 jeuId: jeu.jeuId,
