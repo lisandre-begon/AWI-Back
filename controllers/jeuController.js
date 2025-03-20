@@ -99,21 +99,28 @@ class JeuController {
 
             //Pour obtenir l'intitule et l'éditeur
             const typeJeuxMap = typeJeux.reduce((map, typeJeu) => {
-                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
+                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur, categories: typeJeu.categories };
                 return map;
             }, {});
 
+             // Filter games to include only those created within the active session's date range
+             const filteredJeux = jeux.filter(jeu => 
+                new Date(jeu.createdAt) >= new Date(activeSession.dateDebut) &&
+                new Date(jeu.createdAt) <= new Date(activeSession.dateFin)
+            );
+            
     
-            const jeuWithDetails = {
+            const jeuWithDetails = filteredJeux.map(jeu => ({
                 etiquette: jeu._id,
                 vendeur: vendeursMap[jeu.proprietaire?.toString()], // Map vendeur ID to name
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
-                categories: typeJeuxMap[jeu.typeJeuId?.toString()].categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
-                quantites: jeu.quantites,
-                prix: jeu.prix,
+                editeur: typeJeuxMap[jeu.typeJeuId?.toString()].editeur,
                 statut: jeu.statut,
+                prix: jeu.prix,
+                quantites: jeu.quantites,
+                categories: typeJeuxMap[jeu.typeJeuId?.toString()].categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
                 dateDepot: jeu.createdAt,
-            };
+            }));
     
             res.status(200).json(jeuWithDetails);
         } catch (error) {
@@ -160,11 +167,18 @@ class JeuController {
             }, {});
 
             const typeJeuxMap = typeJeux.reduce((map, typeJeu) => {
-                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur };
+                map[typeJeu._id.toString()] = { intitule: typeJeu.intitule, editeur: typeJeu.editeur, categories: typeJeu.categories };
                 return map;
             }, {});
+
+             // Filter games to include only those created within the active session's date range
+            const filteredJeux = jeux.filter(jeu => 
+                new Date(jeu.createdAt) >= new Date(activeSession.dateDebut) &&
+                new Date(jeu.createdAt) <= new Date(activeSession.dateFin)
+            );
+            
     
-            const jeuxWithDetails = jeux.map(jeu => ({
+            const jeuxWithDetails = filteredJeux.map(jeu => ({
                 etiquette: jeu._id,
                 vendeur: vendeursMap[jeu.proprietaire?.toString()], // Map vendeur ID to name
                 intitule: typeJeuxMap[jeu.typeJeuId?.toString()].intitule,
@@ -172,7 +186,7 @@ class JeuController {
                 statut: jeu.statut,
                 prix: jeu.prix,
                 quantites: jeu.quantites,
-                categories: jeu.categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
+                categories: typeJeuxMap[jeu.typeJeuId?.toString()].categories?.map(catId => categoriesMap[catId?.toString()]), // Replace category IDs with names
                 dateDepot: jeu.createdAt,
             }));
     
